@@ -714,86 +714,32 @@ export function AppProvider({ children }) {
     []
   );
 
-  const requestEdit = useCallback(
-    (employeeName, originalOrder, editedOrder) => {
-      const employee = employees.find(
-        (item) =>
-          normalizeName(item.name) === normalizeName(employeeName)
-      );
-
-      // Admin/Owner edits are applied directly. They must never create
-      // an Edit Order Request.
-      if (employee?.isAdmin) {
-        return false;
-      }
-
-      const dateKey = todayDateKey();
-
-      const existingPending = editRequests.some(
-        (request) =>
-          request.dateKey === dateKey &&
-          normalizeName(request.employeeName) === normalizeName(employeeName) &&
-          request.status === "pending"
-      );
-
-      if (existingPending) return false;
-
-      setEditRequests((previous) => [
-        ...previous,
-        {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          dateKey,
-          employeeName,
-          originalOrder,
-          editedOrder,
-          requestedAt: new Date().toLocaleString("en-GB"),
-          status: "pending",
-        },
-      ]);
-
-      return true;
-    },
-    [employees, editRequests]
-  );
-
-  const clearEditRequestsForEmployee = useCallback((employeeName) => {
-    const normalizedEmployeeName = normalizeName(employeeName);
-
-    setEditRequests((previous) =>
-      previous.filter(
-        (request) =>
-          normalizeName(request.employeeName) !== normalizedEmployeeName ||
-          request.status !== "pending"
-      )
-    );
-  }, []);
-
-  /*
-   * Development/testing helper:
-   * clears only today's orders, edit requests and surplus claims.
-   * Employees, menu, login requests and admin accounts are untouched.
-   */
-  const clearTodayTestData = useCallback(() => {
+  const requestEdit = useCallback((employeeName, originalOrder, editedOrder) => {
     const dateKey = todayDateKey();
-
-    setOrders((previous) => {
-      const next = { ...previous };
-      delete next[dateKey];
-      return next;
-    });
-
-    setSurplusClaims((previous) => {
-      const next = { ...previous };
-      delete next[dateKey];
-      return next;
-    });
-
-    setEditRequests((previous) =>
-      previous.filter((request) => request.dateKey !== dateKey)
+    const existingPending = editRequests.some(
+      (request) =>
+        request.dateKey === dateKey &&
+        request.employeeName === employeeName &&
+        request.status === "pending"
     );
+
+    if (existingPending) return false;
+
+    setEditRequests((previous) => [
+      ...previous,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        dateKey,
+        employeeName,
+        originalOrder,
+        editedOrder,
+        requestedAt: new Date().toLocaleString("en-GB"),
+        status: "pending",
+      },
+    ]);
 
     return true;
-  }, []);
+  }, [editRequests]);
 
   const approveEditRequest = useCallback((requestId) => {
     const request = editRequests.find((item) => item.id === requestId);
@@ -846,6 +792,99 @@ export function AppProvider({ children }) {
 
     return true;
   }, [editRequests]);
+
+  const deleteTodayOrder = useCallback((employeeName) => {
+    const dateKey = todayDateKey();
+    const normalized = normalizeName(employeeName);
+
+    if (!normalized) return false;
+
+    setOrders((previous) => {
+      const todayOrders = {
+        ...(previous[dateKey] || {}),
+      };
+
+      const matchingKey = Object.keys(todayOrders).find(
+        (name) => normalizeName(name) === normalized
+      );
+
+      if (!matchingKey) {
+        return previous;
+      }
+
+      delete todayOrders[matchingKey];
+
+      const next = {
+        ...previous,
+        [dateKey]: todayOrders,
+      };
+
+      if (Object.keys(todayOrders).length === 0) {
+        delete next[dateKey];
+      }
+
+      return next;
+    });
+
+    setSurplusClaims((previous) => {
+      const todayClaims = {
+        ...(previous[dateKey] || {}),
+      };
+
+      const matchingKey = Object.keys(todayClaims).find(
+        (name) => normalizeName(name) === normalized
+      );
+
+      if (matchingKey) {
+        delete todayClaims[matchingKey];
+      }
+
+      const next = {
+        ...previous,
+        [dateKey]: todayClaims,
+      };
+
+      if (Object.keys(todayClaims).length === 0) {
+        delete next[dateKey];
+      }
+
+      return next;
+    });
+
+    setEditRequests((previous) =>
+      previous.filter(
+        (request) =>
+          !(
+            request.dateKey === dateKey &&
+            normalizeName(request.employeeName) === normalized
+          )
+      )
+    );
+
+    return true;
+  }, []);
+
+  const clearTodayData = useCallback(() => {
+    const dateKey = todayDateKey();
+
+    setOrders((previous) => {
+      const next = { ...previous };
+      delete next[dateKey];
+      return next;
+    });
+
+    setSurplusClaims((previous) => {
+      const next = { ...previous };
+      delete next[dateKey];
+      return next;
+    });
+
+    setEditRequests((previous) =>
+      previous.filter((request) => request.dateKey !== dateKey)
+    );
+
+    return true;
+  }, []);
 
   const approveAllToday = useCallback(() => {
     const dateKey = todayDateKey();
@@ -1133,11 +1172,11 @@ export function AppProvider({ children }) {
 
     submitOrder,
     requestEdit,
-    clearEditRequestsForEmployee,
-    clearTodayTestData,
     approveEditRequest,
     rejectEditRequest,
     approveAllToday,
+    deleteTodayOrder,
+    clearTodayData,
 
     claimSurplus,
     releaseSurplus,

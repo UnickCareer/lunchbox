@@ -18,6 +18,7 @@ import {
   Utensils,
   Send,
   Edit3,
+  Trash2,
 } from "lucide-react";
 
 import { useApp } from "../context/AppContext.jsx";
@@ -40,7 +41,7 @@ import EmployeePortal from "./EmployeePortal.jsx";
 // Replace this 10-digit number with the real food sender / kitchen WhatsApp number.
 // Country code is intentionally NOT included here. For India, wa.me will use +91
 // when the 10-digit Indian number is entered below.
-const FOOD_SENDER_PHONE = "8279222515";
+const FOOD_SENDER_PHONE = "7496089517";
 
 const TABS = [
   {
@@ -81,7 +82,6 @@ export default function AdminDashboard() {
     loginRequests,
     editRequests,
     todaysOrders,
-    clearTodayTestData,
     standards,
   } = useApp();
 
@@ -158,66 +158,66 @@ export default function AdminDashboard() {
         : "Regular";
     };
 
+    const itemKeys = [
+      ["bowl1", "Sabzi Bowl 1"],
+      ["bowl2", "Sabzi Bowl 2"],
+      ["bread", "Bread"],
+      ["rice", "Rice"],
+      ["extra", "Extra"],
+      ["salad", "Salad"],
+    ];
+
     const lines = [
-  "🍱 OFFICE LUNCH ORDER",
-  `Date: ${new Date().toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })}`,
-  `Total approved orders: ${orders.length}`,
-  "",
-];
+      "🍱 OFFICE LUNCH ORDER",
+      `Date: ${new Date().toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })}`,
+      `Total approved orders: ${orders.length}`,
+      "",
+    ];
 
-const itemKeys = [
-  ["bowl1", "Sabzi Bowl 1"],
-  ["bowl2", "Sabzi Bowl 2"],
-  ["bread", "Bread"],
-  ["rice", "Rice"],
-  ["extra", "Extra"],
-  ["salad", "Salad"],
-];
+    orders.forEach((order, index) => {
+      const changes = [];
 
-orders.forEach((order, index) => {
-  const changes = [];
+      itemKeys.forEach(([key, label]) => {
+        const actualQty = getQty(order?.[key]);
+        const standardQty = Number(standards?.[key] || 0);
 
-  itemKeys.forEach(([key, label]) => {
-    const actualQty = getQty(order?.[key]);
-    const standardQty = Number(standards?.[key] || 0);
+        if (actualQty < standardQty) {
+          const difference = standardQty - actualQty;
+          const itemName = order?.[key]?.name || label;
 
-    if (actualQty < standardQty) {
-      const difference = standardQty - actualQty;
-      const itemName = order?.[key]?.name || label;
+          changes.push(
+            `- ${itemName}${difference > 1 ? ` × ${difference}` : ""}`
+          );
+        }
 
-      changes.push(
-        `- ${itemName}${difference > 1 ? ` × ${difference}` : ""}`
-      );
-    }
+        if (actualQty > standardQty) {
+          const difference = actualQty - standardQty;
+          const itemName = order?.[key]?.name || label;
 
-    if (actualQty > standardQty) {
-      const difference = actualQty - standardQty;
-      const itemName = order?.[key]?.name || label;
+          changes.push(
+            `+ ${itemName}${difference > 1 ? ` × ${difference}` : ""}`
+          );
+        }
+      });
 
-      changes.push(
-        `+ ${itemName}${difference > 1 ? ` × ${difference}` : ""}`
-      );
-    }
-  });
+      const employeeName = order.employeeName || "Employee";
 
-  const employeeName = order.employeeName || "Employee";
+      if (changes.length === 0) {
+        lines.push(`${index + 1}. ${employeeName} — Regular`);
+      } else {
+        lines.push(
+          `${index + 1}. ${employeeName} — Regular (${changes.join(", ")})`
+        );
+      }
 
-  if (changes.length === 0) {
-    lines.push(`${index + 1}. ${employeeName} — Regular`);
-  } else {
-    lines.push(
-      `${index + 1}. ${employeeName} — Regular (${changes.join(", ")})`
-    );
-  }
+      lines.push("");
+    });
 
-  lines.push("");
-});
-
-lines.push("Please prepare the above approved lunch orders.");
+    lines.push("Please prepare the above approved lunch orders.");
 
     const phone = String(FOOD_SENDER_PHONE).replace(/\D/g, "");
     // The project is currently set for India. Keep FOOD_SENDER_PHONE as a
@@ -420,44 +420,6 @@ lines.push("Please prepare the above approved lunch orders.");
           </div>
         )}
 
-        {isOwner && (
-          <div className="mb-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] font-bold text-red-600 dark:text-red-300">
-                  Testing Tool
-                </p>
-                <p className="mt-1 text-sm font-semibold text-ink-900 dark:text-cream-50">
-                  Clear today's test orders
-                </p>
-                <p className="mt-1 text-xs text-ink-600 dark:text-cream-50/60">
-                  Removes only today's orders, edit requests and surplus claims. Employees and menu are kept.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const confirmed = window.confirm(
-                    "Clear ALL of today's test orders, edit requests and surplus claims? Employees and menu will NOT be deleted."
-                  );
-
-                  if (!confirmed) return;
-
-                  clearTodayTestData();
-                  toast(
-                    "Today's test orders, edit requests and surplus claims were cleared.",
-                    "success"
-                  );
-                }}
-                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-bold text-white hover:brightness-105 transition"
-              >
-                Clear Today's Test Data
-              </button>
-            </div>
-          </div>
-        )}
-
         <AnimatePresence
           mode="wait"
         >
@@ -507,5 +469,3 @@ lines.push("Please prepare the above approved lunch orders.");
     </div>
   );
 }
-
-// Chnage edit order phase
