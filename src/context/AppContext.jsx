@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useState,
   useCallback,
+  useRef,
 } from "react";
 
 import {
@@ -13,6 +14,7 @@ import {
 } from "../data/seedData.js";
 
 import { normalizeName } from "../utils/validation.js";
+import { supabase, isSupabaseConfigured } from "../lib/supabase.js";
 
 const AppContext = createContext(null);
 
@@ -23,6 +25,9 @@ const LS_KEYS = {
   theme: "op_theme",
   surplusClaims: "op_surplus_claims",
   loginRequests: "op_login_requests",
+  editRequests: "op_edit_requests",
+  currentUser: "op_current_user",
+  currentPage: "op_current_page",
 };
 
 function loadLS(key, fallback) {
@@ -157,31 +162,234 @@ export function AppProvider({ children }) {
     loadLS(LS_KEYS.loginRequests, [])
   );
 
-  const [currentUser, setCurrentUser] = useState(null);
+  const [editRequests, setEditRequests] = useState(() =>
+    loadLS(LS_KEYS.editRequests, [])
+  );
+
+  const [currentUser, setCurrentUser] = useState(() =>
+    loadLS(LS_KEYS.currentUser, null)
+  );
+
+  const [currentPage, setCurrentPage] = useState(() =>
+    loadLS(LS_KEYS.currentPage, "login")
+  );
+
+  const [cloudReady, setCloudReady] = useState(!isSupabaseConfigured);
+
+  const [cloudStatus, setCloudStatus] = useState(
+    isSupabaseConfigured ? "connecting" : "local"
+  );
+
+  // Requirement 2 synchronization guards.
+  // A Realtime update is already coming FROM Supabase, so we must not
+  // immediately write that same snapshot back to Supabase. That feedback
+  // loop was the main cause of flickering/repeated submissions.
+  const skipNextCloudSyncRef = useRef(false);
+  const cloudSyncTimerRef = useRef(null);
+  const cloudSyncVersionRef = useRef(0);
+
+  const persistCloud = useCallback(async (snapshot) => {
+    if (!isSupabaseConfigured || !cloudReady) return;
+
+    const version = ++cloudSyncVersionRef.current;
+
+    const { error } = await supabase
+      .from("office_app_state")
+      .update({
+        employees: snapshot.employees,
+        menu: snapshot.menu,
+        orders: snapshot.orders,
+        surplus_claims: snapshot.surplusClaims,
+        login_requests: snapshot.loginRequests,
+        edit_requests: snapshot.editRequests,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", 1);
+
+    // Ignore an old queued request if a newer local state was already saved.
+    if (version !== cloudSyncVersionRef.current) return;
+
+    if (error) {
+      console.error("Supabase sync error:", error);
+      setCloudStatus("error");
+    } else {
+      setCloudStatus("online");
+    }
+  }, [cloudReady]);
+
+  // One debounced writer for the complete shared state.
+  // This replaces five independent upserts that could race with each other.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !cloudReady) return;
+
+    if (skipNextCloudSyncRef.current) {
+      skipNextCloudSyncRef.current = false;
+      return;
+    }
+
+    if (cloudSyncTimerRef.current) {
+      clearTimeout(cloudSyncTimerRef.current);
+    }
+
+    cloudSyncTimerRef.current = window.setTimeout(() => {
+      void persistCloud({
+        employees,
+        menu,
+        orders,
+        surplusClaims,
+        loginRequests,
+        editRequests,
+      });
+    }, 150);
+
+    return () => {
+      if (cloudSyncTimerRef.current) {
+        clearTimeout(cloudSyncTimerRef.current);
+        cloudSyncTimerRef.current = null;
+      }
+    };
+  }, [
+    employees,
+    menu,
+    orders,
+    surplusClaims,
+    loginRequests,
+    editRequests,
+    cloudReady,
+    persistCloud,
+  ]);
 
   useEffect(() => {
-    saveLS(LS_KEYS.employees, employees);
-  }, [employees]);
+    if (!isSupabaseConfigured) return;
+
+    let cancelled = false;
+
+    const loadCloud = async () => {
+      setCloudStatus("connecting");
+
+      const { data, error } = await supabase
+        .from("office_app_state")
+        .select("id, employees, menu, orders, surplus_claims, login_requests, edit_requests, updated_at")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Could not load Supabase state:", error);
+        setCloudStatus("error");
+        setCloudReady(true);
+        return;
+      }
+
+      // Any state loaded here is already the source of truth from Supabase.
+      // Do not immediately write it back again.
+      skipNextCloudSyncRef.current = true;
+
+      if (!data) {
+        // First device becomes the initial source of the shared state.
+        const initialState = {
+          id: 1,
+          employees,
+          menu,
+          orders,
+          surplus_claims: surplusClaims,
+          login_requests: loginRequests,
+          edit_requests: editRequests,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: seedError } = await supabase
+          .from("office_app_state")
+          .insert(initialState);
+
+        if (seedError) {
+          console.error("Could not seed Supabase state:", seedError);
+          setCloudStatus("error");
+        } else {
+          setCloudStatus("online");
+        }
+      } else {
+        if (Array.isArray(data.employees)) {
+          setEmployees(normalizeStoredEmployees(data.employees));
+        }
+        if (data.menu && typeof data.menu === "object") {
+          setMenu(data.menu);
+        }
+        if (data.orders && typeof data.orders === "object") {
+          setOrders(data.orders);
+        }
+        if (data.surplus_claims && typeof data.surplus_claims === "object") {
+          setSurplusClaims(data.surplus_claims);
+        }
+        if (Array.isArray(data.login_requests)) {
+          setLoginRequests(data.login_requests);
+        }
+        if (Array.isArray(data.edit_requests)) {
+          setEditRequests(data.edit_requests);
+        }
+        setCloudStatus("online");
+      }
+
+      setCloudReady(true);
+    };
+
+    void loadCloud();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
-    saveLS(LS_KEYS.menu, menu);
-  }, [menu]);
+    if (!isSupabaseConfigured) return;
 
-  useEffect(() => {
-    saveLS(LS_KEYS.orders, orders);
-  }, [orders]);
+    const channel = supabase
+      .channel("office-app-state-sync")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "office_app_state",
+          filter: "id=eq.1",
+        },
+        (payload) => {
+          const data = payload.new;
+          if (!data) return;
 
-  useEffect(() => {
-    saveLS(LS_KEYS.theme, theme);
-  }, [theme]);
+          // This snapshot came from Supabase. Apply it locally once, but do
+          // not send the same snapshot straight back to Supabase.
+          skipNextCloudSyncRef.current = true;
 
-  useEffect(() => {
-    saveLS(LS_KEYS.surplusClaims, surplusClaims);
-  }, [surplusClaims]);
+          if (Array.isArray(data.employees)) {
+            setEmployees(normalizeStoredEmployees(data.employees));
+          }
+          if (data.menu && typeof data.menu === "object") {
+            setMenu(data.menu);
+          }
+          if (data.orders && typeof data.orders === "object") {
+            setOrders(data.orders);
+          }
+          if (data.surplus_claims && typeof data.surplus_claims === "object") {
+            setSurplusClaims(data.surplus_claims);
+          }
+          if (Array.isArray(data.login_requests)) {
+            setLoginRequests(data.login_requests);
+          }
+          if (Array.isArray(data.edit_requests)) {
+            setEditRequests(data.edit_requests);
+          }
 
-  useEffect(() => {
-    saveLS(LS_KEYS.loginRequests, loginRequests);
-  }, [loginRequests]);
+          setCloudStatus("online");
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -266,6 +474,8 @@ export function AppProvider({ children }) {
         isOwner: Boolean(match.isOwner),
       });
 
+      setCurrentPage(match.isAdmin ? "admin" : "employee");
+
       return {
         ok: true,
         isAdmin: Boolean(match.isAdmin),
@@ -275,9 +485,13 @@ export function AppProvider({ children }) {
     [employees]
   );
 
+  const navigateTo = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
+
   const logout = useCallback(() => {
-    // App.jsx switches to Login immediately when this becomes null.
     setCurrentUser(null);
+    setCurrentPage("login");
   }, []);
 
   /* ==========================================================
@@ -499,6 +713,139 @@ export function AppProvider({ children }) {
     },
     []
   );
+
+  const requestEdit = useCallback(
+    (employeeName, originalOrder, editedOrder) => {
+      const employee = employees.find(
+        (item) =>
+          normalizeName(item.name) === normalizeName(employeeName)
+      );
+
+      // Admin/Owner edits are applied directly. They must never create
+      // an Edit Order Request.
+      if (employee?.isAdmin) {
+        return false;
+      }
+
+      const dateKey = todayDateKey();
+
+      const existingPending = editRequests.some(
+        (request) =>
+          request.dateKey === dateKey &&
+          normalizeName(request.employeeName) === normalizeName(employeeName) &&
+          request.status === "pending"
+      );
+
+      if (existingPending) return false;
+
+      setEditRequests((previous) => [
+        ...previous,
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          dateKey,
+          employeeName,
+          originalOrder,
+          editedOrder,
+          requestedAt: new Date().toLocaleString("en-GB"),
+          status: "pending",
+        },
+      ]);
+
+      return true;
+    },
+    [employees, editRequests]
+  );
+
+  const clearEditRequestsForEmployee = useCallback((employeeName) => {
+    const normalizedEmployeeName = normalizeName(employeeName);
+
+    setEditRequests((previous) =>
+      previous.filter(
+        (request) =>
+          normalizeName(request.employeeName) !== normalizedEmployeeName ||
+          request.status !== "pending"
+      )
+    );
+  }, []);
+
+  /*
+   * Development/testing helper:
+   * clears only today's orders, edit requests and surplus claims.
+   * Employees, menu, login requests and admin accounts are untouched.
+   */
+  const clearTodayTestData = useCallback(() => {
+    const dateKey = todayDateKey();
+
+    setOrders((previous) => {
+      const next = { ...previous };
+      delete next[dateKey];
+      return next;
+    });
+
+    setSurplusClaims((previous) => {
+      const next = { ...previous };
+      delete next[dateKey];
+      return next;
+    });
+
+    setEditRequests((previous) =>
+      previous.filter((request) => request.dateKey !== dateKey)
+    );
+
+    return true;
+  }, []);
+
+  const approveEditRequest = useCallback((requestId) => {
+    const request = editRequests.find((item) => item.id === requestId);
+    if (!request || request.status !== "pending") return false;
+
+    setOrders((previous) => {
+      const dateOrders = previous[request.dateKey] || {};
+      const currentOrder = dateOrders[request.employeeName];
+      if (!currentOrder) return previous;
+
+      return {
+        ...previous,
+        [request.dateKey]: {
+          ...dateOrders,
+          [request.employeeName]: {
+            ...request.editedOrder,
+            employeeName: request.employeeName,
+            submittedAt: new Date().toLocaleTimeString("en-GB"),
+            approved: false,
+            editApprovedAt: new Date().toLocaleString("en-GB"),
+          },
+        },
+      };
+    });
+
+    setEditRequests((previous) =>
+      previous.map((item) =>
+        item.id === requestId
+          ? { ...item, status: "approved", reviewedAt: new Date().toLocaleString("en-GB") }
+          : item
+      )
+    );
+
+    return true;
+  }, [editRequests]);
+
+  const rejectEditRequest = useCallback((requestId) => {
+    const exists = editRequests.some(
+      (item) => item.id === requestId && item.status === "pending"
+    );
+    if (!exists) return false;
+
+    setEditRequests((previous) =>
+      previous.map((item) =>
+        item.id === requestId
+          ? { ...item, status: "rejected", reviewedAt: new Date().toLocaleString("en-GB") }
+          : item
+      )
+    );
+
+    return true;
+  }, [editRequests]);
 
   const approveAllToday = useCallback(() => {
     const dateKey = todayDateKey();
@@ -741,6 +1088,12 @@ export function AppProvider({ children }) {
           loadLS(LS_KEYS.loginRequests, [])
         );
       }
+
+      if (event.key === LS_KEYS.editRequests) {
+        setEditRequests(
+          loadLS(LS_KEYS.editRequests, [])
+        );
+      }
     };
 
     window.addEventListener("storage", handleStorage);
@@ -757,13 +1110,16 @@ export function AppProvider({ children }) {
     todaysOrders,
     theme,
     currentUser,
+    currentPage,
     standards,
     surplusAvailability,
     loginRequests,
+    editRequests,
 
     toggleTheme,
     login,
     logout,
+    navigateTo,
 
     addEmployee,
     removeEmployee,
@@ -776,10 +1132,17 @@ export function AppProvider({ children }) {
     updateMenuDay,
 
     submitOrder,
+    requestEdit,
+    clearEditRequestsForEmployee,
+    clearTodayTestData,
+    approveEditRequest,
+    rejectEditRequest,
     approveAllToday,
 
     claimSurplus,
     releaseSurplus,
+
+    cloudStatus,
   };
 
   return (

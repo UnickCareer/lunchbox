@@ -9,17 +9,44 @@ import EmployeePortal from "./pages/EmployeePortal.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 
 function Screen() {
-  const { currentUser } = useApp();
+  const {
+    currentUser,
+    currentPage,
+  } = useApp();
 
-  if (currentUser?.isAdmin) {
+  if (!currentUser || currentPage === "login") {
+    return <Login />;
+  }
+
+  if (
+    currentUser.isAdmin &&
+    currentPage === "admin"
+  ) {
     return <AdminDashboard />;
   }
 
-  if (currentUser) {
+  if (
+    currentUser.isAdmin &&
+    currentPage === "admin-lunch"
+  ) {
+    return (
+      <EmployeePortal
+        adminBooking
+      />
+    );
+  }
+
+  if (
+    currentUser &&
+    currentPage === "employee"
+  ) {
     return <EmployeePortal />;
   }
 
-  return <Login />;
+  // Safety fallback for older/corrupted localStorage.
+  return currentUser.isAdmin
+    ? <AdminDashboard />
+    : <EmployeePortal />;
 }
 
 export default function App() {

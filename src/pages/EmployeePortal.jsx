@@ -1,6 +1,7 @@
 import React, {
   useMemo,
   useState,
+  useEffect,
 } from "react";
 
 import { motion } from "framer-motion";
@@ -13,6 +14,7 @@ import {
   IceCreamBowl,
   Salad as SaladIcon,
   LogOut,
+  ArrowLeft,
   Repeat,
   CalendarDays,
 } from "lucide-react";
@@ -35,13 +37,17 @@ import Cart from "../components/Cart.jsx";
 
 import SurplusPanel from "../components/SurplusPanel.jsx";
 
-export default function EmployeePortal() {
+export default function EmployeePortal({
+  adminBooking = false,
+  onBackToAdmin = null,
+}) {
   const {
     currentUser,
 
     menu,
 
     logout,
+    navigateTo,
 
     submitOrder,
 
@@ -53,6 +59,9 @@ export default function EmployeePortal() {
 
     claimSurplus,
     releaseSurplus,
+    requestEdit,
+    clearEditRequestsForEmployee,
+    editRequests,
   } = useApp();
 
   const toast =
@@ -73,6 +82,8 @@ export default function EmployeePortal() {
     doubledItem,
     setDoubledItem,
   ] = useState("dry");
+
+  const [editingOrder, setEditingOrder] = useState(false);
 
   /*
    * Normal food quantities.
@@ -112,6 +123,39 @@ export default function EmployeePortal() {
           safeUserName
         ]
       : null;
+
+  // Admin/Owner orders never enter the employee edit-request approval flow.
+  const pendingEditRequest =
+    currentUser?.isAdmin
+      ? null
+      : safeUserName
+        ? editRequests.find(
+            (request) =>
+              request.employeeName === safeUserName &&
+              request.dateKey === new Date().toISOString().slice(0, 10) &&
+              request.status === "pending"
+          )
+        : null;
+
+  useEffect(() => {
+    if (!editingOrder || !alreadySubmitted) return;
+
+    setQty({
+      bowl1: Number(alreadySubmitted.bowl1?.qty || 0),
+      bowl2: Number(alreadySubmitted.bowl2?.qty || 0),
+      bread: Number(alreadySubmitted.bread?.qty || 0),
+      rice: Number(alreadySubmitted.rice?.qty || 0),
+      extra: Number(alreadySubmitted.extra?.qty || 0),
+      salad: Number(alreadySubmitted.salad?.qty || 0),
+    });
+
+    const bowl1 = String(alreadySubmitted.bowl1?.name || "");
+    const bowl2 = String(alreadySubmitted.bowl2?.name || "");
+    setSameBowl(Boolean(bowl1 && bowl1 === bowl2));
+    setDoubledItem(
+      bowl1 === String(dayMenu?.gravy || "") ? "gravy" : "dry"
+    );
+  }, [editingOrder]);
 
   const bowl1Name =
     dayMenu
@@ -299,6 +343,20 @@ export default function EmployeePortal() {
 
       bowl2Name,
     ]);
+
+  /*
+   * When "Same vegetable in both bowls" is enabled, the two
+   * individual bowl cards are intentionally hidden. The order
+   * data still contains both bowls, so submission and surplus
+   * logic continue to work normally.
+   */
+  const visibleItems = sameBowl
+    ? items.filter(
+        (item) =>
+          item.key !== "bowl1" &&
+          item.key !== "bowl2"
+      )
+    : items;
 
   /*
    * ==========================================================
@@ -513,60 +571,53 @@ export default function EmployeePortal() {
         return;
       }
 
-      submitOrder(
-        currentUser.name,
-        {
-          bowl1: {
-            name:
-              effectiveBowl1Name,
+      const nextOrder = {
+        bowl1: { name: effectiveBowl1Name, qty: qty.bowl1 },
+        bowl2: { name: bowl2Name, qty: qty.bowl2 },
+        bread: { name: dayMenu.bread.name, qty: qty.bread },
+        rice: { name: dayMenu.rice, qty: qty.rice },
+        extra: { name: dayMenu.extra.name, qty: qty.extra },
+        salad: { name: dayMenu.salad, qty: qty.salad },
+      };
 
-            qty:
-              qty.bowl1,
-          },
-
-          bowl2: {
-            name:
-              bowl2Name,
-
-            qty:
-              qty.bowl2,
-          },
-
-          bread: {
-            name:
-              dayMenu.bread
-                .name,
-
-            qty:
-              qty.bread,
-          },
-
-          rice: {
-            name:
-              dayMenu.rice,
-
-            qty:
-              qty.rice,
-          },
-
-          extra: {
-            name:
-              dayMenu.extra
-                .name,
-
-            qty:
-              qty.extra,
-          },
-
-          salad: {
-            name:
-              dayMenu.salad,
-
-            qty:
-              qty.salad,
-          },
+      if (editingOrder && alreadySubmitted) {
+        // Admin/Owner is the approving authority, so their own edit is direct.
+        if (currentUser.isAdmin) {
+          // Remove any stale/pending edit request that may have been created
+          // before the Admin/Owner direct-edit rule was introduced.
+          clearEditRequestsForEmployee(currentUser.name);
+          submitOrder(currentUser.name, nextOrder);
+          setEditingOrder(false);
+          toast(
+            "Order edited successfully. No edit approval is required for Admin/Owner.",
+            "success"
+          );
+          return;
         }
-      );
+
+        const created = requestEdit(
+          currentUser.name,
+          alreadySubmitted,
+          nextOrder
+        );
+
+        if (!created) {
+          toast(
+            "An edit request is already pending for your order.",
+            "info"
+          );
+          return;
+        }
+
+        setEditingOrder(false);
+        toast(
+          "Order edit request submitted successfully. Please wait for admin approval.",
+          "success"
+        );
+        return;
+      }
+
+      submitOrder(currentUser.name, nextOrder);
 
       toast(
         "Your thali order is locked in for today",
@@ -582,19 +633,48 @@ export default function EmployeePortal() {
   return (
     <div className="min-h-screen bg-cream-100 dark:bg-emerald-950 pb-28">
       <header className="sticky top-0 z-30 glass border-b border-white/20 dark:border-white/5">
-        <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-ink-700 dark:text-cream-50/70">
-            <CalendarDays
-              size={16}
-            />
+        <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {adminBooking && (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  if (onBackToAdmin) {
+                    onBackToAdmin();
+                    return;
+                  }
 
-            <span className="text-sm font-medium">
-              {weekday} ·{" "}
-              {todayLabel()}
-            </span>
+                  navigateTo("admin");
+                }}
+                className="inline-flex items-center gap-2 rounded-full glass px-3 py-2 text-sm font-semibold text-ink-700 dark:text-cream-50/80 hover:bg-ink-900/5 dark:hover:bg-white/10 transition shrink-0"
+                aria-label="Back to Admin Dashboard"
+              >
+                <ArrowLeft size={16} />
+
+                <span className="hidden sm:inline">
+                  Back to Dashboard
+                </span>
+
+                <span className="sm:hidden">
+                  Back
+                </span>
+              </motion.button>
+            )}
+
+            <div className="flex items-center gap-2 text-ink-700 dark:text-cream-50/70 min-w-0">
+              <CalendarDays
+                size={16}
+              />
+
+              <span className="text-sm font-medium truncate">
+                {weekday} ·{" "}
+                {todayLabel()}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="hidden sm:inline text-xs font-medium text-ink-500 dark:text-cream-50/50">
               {currentUser.name}
             </span>
@@ -654,33 +734,71 @@ export default function EmployeePortal() {
             {weekday}. Enjoy your
             day off!
           </motion.div>
-        ) : alreadySubmitted ? (
+        ) : alreadySubmitted && !editingOrder ? (
           <motion.div
-            initial={{
-              opacity: 0,
-              y: 12,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
             className="glass-strong rounded-3xl p-8 text-center"
           >
             <p className="font-display text-xl font-semibold mb-1">
-              Order already submitted
+              Order Submitted Successfully
               ✅
             </p>
 
-            <p className="text-sm text-ink-500 dark:text-cream-50/60">
-              Submitted at{" "}
-              {
-                alreadySubmitted.submittedAt
-              }
-              . See you at lunch!
+            <p className="text-sm text-ink-500 dark:text-cream-50/60 mb-5">
+              Submitted at {alreadySubmitted.submittedAt}.
             </p>
+
+            {pendingEditRequest ? (
+              <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4">
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                  Edit Request Pending ⏳
+                </p>
+                <p className="mt-1 text-xs text-ink-500 dark:text-cream-50/60">
+                  Admin needs to approve or reject your requested change.
+                </p>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEditingOrder(true)}
+                  className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-emerald-950 shadow-glow hover:brightness-105 transition"
+                >
+                  Edit Order
+                </button>
+                <p className="mt-3 text-xs text-ink-500 dark:text-cream-50/50">
+                  {currentUser?.isAdmin
+                    ? "Admin/Owner changes are applied directly."
+                    : "Changes are sent to Admin for approval."}
+                </p>
+              </>
+            )}
           </motion.div>
         ) : (
           <>
+            {editingOrder && (
+              <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                    Editing your submitted order
+                  </p>
+                  <p className="text-xs text-ink-500 dark:text-cream-50/60">
+                    {currentUser?.isAdmin
+                      ? "Submit the change to update your order directly."
+                      : "Submit the change to send an Edit Request to Admin."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingOrder(false)}
+                  className="rounded-lg glass px-3 py-2 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
             <div className="flex justify-center mb-8">
               <ThaliRing
                 segments={
@@ -703,13 +821,14 @@ export default function EmployeePortal() {
               </div>
 
               <button
+                type="button"
                 onClick={() =>
                   setSameBowl(
                     (value) =>
                       !value
                   )
                 }
-                className={`relative h-7 w-12 rounded-full transition-colors ${
+                className={`relative flex-none h-8 w-14 rounded-full p-1 overflow-hidden transition-colors duration-200 ${
                   sameBowl
                     ? "bg-emerald-500"
                     : "bg-ink-900/10 dark:bg-white/10"
@@ -717,13 +836,19 @@ export default function EmployeePortal() {
                 aria-pressed={
                   sameBowl
                 }
+                aria-label="Same vegetable in both bowls"
               >
                 <motion.span
-                  className="absolute top-1 h-5 w-5 rounded-full bg-white shadow"
+                  className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-md"
                   animate={{
                     x: sameBowl
-                      ? 22
-                      : 4,
+                      ? 24
+                      : 0,
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 500,
+                    damping: 30,
                   }}
                 />
               </button>
@@ -733,49 +858,74 @@ export default function EmployeePortal() {
               <motion.div
                 initial={{
                   opacity: 0,
-                  height: 0,
+                  y: -6,
                 }}
                 animate={{
                   opacity: 1,
-                  height:
-                    "auto",
+                  y: 0,
                 }}
-                className="mb-4 flex gap-2"
+                className="mb-4 space-y-3"
               >
-                {[
-                  "dry",
-                  "gravy",
-                ].map(
-                  (option) => (
-                    <button
-                      key={
-                        option
-                      }
-                      onClick={() =>
-                        setDoubledItem(
+                <div className="flex gap-2">
+                  {[
+                    "dry",
+                    "gravy",
+                  ].map(
+                    (option) => (
+                      <button
+                        type="button"
+                        key={
                           option
-                        )
-                      }
-                      className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition ${
-                        doubledItem ===
-                        option
-                          ? "bg-emerald-500 text-emerald-950"
-                          : "glass text-ink-700 dark:text-cream-50/70"
-                      }`}
-                    >
-                      Double{" "}
-                      {option ===
-                      "dry"
+                        }
+                        onClick={() =>
+                          setDoubledItem(
+                            option
+                          )
+                        }
+                        className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition ${
+                          doubledItem ===
+                          option
+                            ? "bg-emerald-500 text-emerald-950"
+                            : "glass text-ink-700 dark:text-cream-50/70"
+                        }`}
+                      >
+                        Double{" "}
+                        {option ===
+                        "dry"
+                          ? dayMenu.dry
+                          : dayMenu.gravy}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <motion.div
+                  initial={{
+                    opacity: 0,
+                    scale: 0.98,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                  }}
+                  className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-center"
+                >
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                    You added both sabzi bowls the same.
+                  </p>
+                  <p className="mt-1 text-xs text-ink-500 dark:text-cream-50/50">
+                    Both bowls will contain {
+                      doubledItem === "dry"
                         ? dayMenu.dry
-                        : dayMenu.gravy}
-                    </button>
-                  )
-                )}
+                        : dayMenu.gravy
+                    }.
+                  </p>
+                </motion.div>
               </motion.div>
             )}
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {items.map(
+              {visibleItems.map(
                 (item) => (
                   <ItemCard
                     key={
