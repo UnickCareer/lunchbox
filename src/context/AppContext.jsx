@@ -180,10 +180,13 @@ export function AppProvider({ children }) {
     isSupabaseConfigured ? "connecting" : "local"
   );
 
-  // Requirement 2 synchronization guards.
-  // A Realtime update is already coming FROM Supabase, so we must not
-  // immediately write that same snapshot back to Supabase. That feedback
-  // loop was the main cause of flickering/repeated submissions.
+  /*
+   * Requirement 2 synchronization guards.
+   *
+   * A Realtime update is already coming FROM Supabase,
+   * so we must not immediately write that same snapshot
+   * back to Supabase.
+   */
   const skipNextCloudSyncRef = useRef(false);
   const cloudSyncTimerRef = useRef(null);
   const cloudSyncVersionRef = useRef(0);
@@ -217,8 +220,9 @@ export function AppProvider({ children }) {
     }
   }, [cloudReady]);
 
-  // One debounced writer for the complete shared state.
-  // This replaces five independent upserts that could race with each other.
+  /*
+   * One debounced writer for the complete shared state.
+   */
   useEffect(() => {
     if (!isSupabaseConfigured || !cloudReady) return;
 
@@ -269,7 +273,9 @@ export function AppProvider({ children }) {
 
       const { data, error } = await supabase
         .from("office_app_state")
-        .select("id, employees, menu, orders, surplus_claims, login_requests, edit_requests, updated_at")
+        .select(
+          "id, employees, menu, orders, surplus_claims, login_requests, edit_requests, updated_at"
+        )
         .eq("id", 1)
         .maybeSingle();
 
@@ -283,7 +289,6 @@ export function AppProvider({ children }) {
       }
 
       // Any state loaded here is already the source of truth from Supabase.
-      // Do not immediately write it back again.
       skipNextCloudSyncRef.current = true;
 
       if (!data) {
@@ -304,30 +309,50 @@ export function AppProvider({ children }) {
           .insert(initialState);
 
         if (seedError) {
-          console.error("Could not seed Supabase state:", seedError);
+          console.error(
+            "Could not seed Supabase state:",
+            seedError
+          );
           setCloudStatus("error");
         } else {
           setCloudStatus("online");
         }
       } else {
         if (Array.isArray(data.employees)) {
-          setEmployees(normalizeStoredEmployees(data.employees));
+          setEmployees(
+            normalizeStoredEmployees(data.employees)
+          );
         }
-        if (data.menu && typeof data.menu === "object") {
+
+        if (
+          data.menu &&
+          typeof data.menu === "object"
+        ) {
           setMenu(data.menu);
         }
-        if (data.orders && typeof data.orders === "object") {
+
+        if (
+          data.orders &&
+          typeof data.orders === "object"
+        ) {
           setOrders(data.orders);
         }
-        if (data.surplus_claims && typeof data.surplus_claims === "object") {
+
+        if (
+          data.surplus_claims &&
+          typeof data.surplus_claims === "object"
+        ) {
           setSurplusClaims(data.surplus_claims);
         }
+
         if (Array.isArray(data.login_requests)) {
           setLoginRequests(data.login_requests);
         }
+
         if (Array.isArray(data.edit_requests)) {
           setEditRequests(data.edit_requests);
         }
+
         setCloudStatus("online");
       }
 
@@ -356,27 +381,43 @@ export function AppProvider({ children }) {
         },
         (payload) => {
           const data = payload.new;
+
           if (!data) return;
 
-          // This snapshot came from Supabase. Apply it locally once, but do
-          // not send the same snapshot straight back to Supabase.
+          // Snapshot came from Supabase.
           skipNextCloudSyncRef.current = true;
 
           if (Array.isArray(data.employees)) {
-            setEmployees(normalizeStoredEmployees(data.employees));
+            setEmployees(
+              normalizeStoredEmployees(data.employees)
+            );
           }
-          if (data.menu && typeof data.menu === "object") {
+
+          if (
+            data.menu &&
+            typeof data.menu === "object"
+          ) {
             setMenu(data.menu);
           }
-          if (data.orders && typeof data.orders === "object") {
+
+          if (
+            data.orders &&
+            typeof data.orders === "object"
+          ) {
             setOrders(data.orders);
           }
-          if (data.surplus_claims && typeof data.surplus_claims === "object") {
+
+          if (
+            data.surplus_claims &&
+            typeof data.surplus_claims === "object"
+          ) {
             setSurplusClaims(data.surplus_claims);
           }
+
           if (Array.isArray(data.login_requests)) {
             setLoginRequests(data.login_requests);
           }
+
           if (Array.isArray(data.edit_requests)) {
             setEditRequests(data.edit_requests);
           }
@@ -410,6 +451,7 @@ export function AppProvider({ children }) {
   /* ==========================================================
    * LOGIN
    * ========================================================== */
+
   const login = useCallback(
     (name, pin = "") => {
       const normalized = normalizeName(name);
@@ -442,7 +484,8 @@ export function AppProvider({ children }) {
                   .toString(36)
                   .slice(2, 8)}`,
                 name: cleanName,
-                requestedAt: new Date().toLocaleString("en-GB"),
+                requestedAt:
+                  new Date().toLocaleString("en-GB"),
               },
             ];
           });
@@ -474,7 +517,9 @@ export function AppProvider({ children }) {
         isOwner: Boolean(match.isOwner),
       });
 
-      setCurrentPage(match.isAdmin ? "admin" : "employee");
+      setCurrentPage(
+        match.isAdmin ? "admin" : "employee"
+      );
 
       return {
         ok: true,
@@ -497,6 +542,7 @@ export function AppProvider({ children }) {
   /* ==========================================================
    * EMPLOYEE MANAGEMENT
    * ========================================================== */
+
   const addEmployee = useCallback(
     (name, isAdmin = false, adminPin = "") => {
       const cleanName = String(name || "")
@@ -529,7 +575,9 @@ export function AppProvider({ children }) {
             role: isAdmin ? "admin" : "employee",
             isAdmin: Boolean(isAdmin),
             isOwner: false,
-            adminPin: isAdmin ? String(adminPin || "") : "",
+            adminPin: isAdmin
+              ? String(adminPin || "")
+              : "",
             temporaryUntil: null,
           },
         ];
@@ -577,7 +625,9 @@ export function AppProvider({ children }) {
         return {
           ...employee,
           isAdmin: becomingAdmin,
-          role: becomingAdmin ? "admin" : "employee",
+          role: becomingAdmin
+            ? "admin"
+            : "employee",
           adminPin: becomingAdmin
             ? employee.adminPin || ""
             : "",
@@ -588,36 +638,43 @@ export function AppProvider({ children }) {
     return true;
   }, []);
 
-  const setAdminPin = useCallback((name, pin) => {
-    const normalized = normalizeName(name);
+  const setAdminPin = useCallback(
+    (name, pin) => {
+      const normalized = normalizeName(name);
 
-    if (!pin || String(pin).length < 4) {
-      return false;
-    }
+      if (!pin || String(pin).length < 4) {
+        return false;
+      }
 
-    setEmployees((previous) =>
-      previous.map((employee) => {
-        if (
-          normalizeName(employee.name) !== normalized
-        ) {
-          return employee;
-        }
+      setEmployees((previous) =>
+        previous.map((employee) => {
+          if (
+            normalizeName(employee.name) !==
+            normalized
+          ) {
+            return employee;
+          }
 
-        return {
-          ...employee,
-          isAdmin: true,
-          role: employee.isOwner ? "owner" : "admin",
-          adminPin: String(pin),
-        };
-      })
-    );
+          return {
+            ...employee,
+            isAdmin: true,
+            role: employee.isOwner
+              ? "owner"
+              : "admin",
+            adminPin: String(pin),
+          };
+        })
+      );
 
-    return true;
-  }, []);
+      return true;
+    },
+    []
+  );
 
   /* ==========================================================
    * ACCESS REQUESTS
    * ========================================================== */
+
   const approveAccessRequest = useCallback(
     (requestId, temporary = false) => {
       const request = loginRequests.find(
@@ -681,6 +738,7 @@ export function AppProvider({ children }) {
   /* ==========================================================
    * MENU
    * ========================================================== */
+
   const updateMenuDay = useCallback(
     (day, updatedDay) => {
       setMenu((previous) => ({
@@ -694,6 +752,7 @@ export function AppProvider({ children }) {
   /* ==========================================================
    * ORDERS
    * ========================================================== */
+
   const submitOrder = useCallback(
     (employeeName, order) => {
       const dateKey = todayDateKey();
@@ -705,7 +764,8 @@ export function AppProvider({ children }) {
           [employeeName]: {
             ...order,
             employeeName,
-            submittedAt: new Date().toLocaleTimeString("en-GB"),
+            submittedAt:
+              new Date().toLocaleTimeString("en-GB"),
             approved: false,
           },
         },
@@ -714,155 +774,276 @@ export function AppProvider({ children }) {
     []
   );
 
-  const requestEdit = useCallback((employeeName, originalOrder, editedOrder) => {
-    const dateKey = todayDateKey();
-    const existingPending = editRequests.some(
-      (request) =>
-        request.dateKey === dateKey &&
-        request.employeeName === employeeName &&
-        request.status === "pending"
-    );
+  /* ==========================================================
+   * EDIT REQUESTS
+   * ========================================================== */
 
-    if (existingPending) return false;
+  const requestEdit = useCallback(
+    (
+      employeeName,
+      originalOrder,
+      editedOrder
+    ) => {
+      const dateKey = todayDateKey();
 
-    setEditRequests((previous) => [
-      ...previous,
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        dateKey,
-        employeeName,
-        originalOrder,
-        editedOrder,
-        requestedAt: new Date().toLocaleString("en-GB"),
-        status: "pending",
-      },
-    ]);
-
-    return true;
-  }, [editRequests]);
-
-  const approveEditRequest = useCallback((requestId) => {
-    const request = editRequests.find((item) => item.id === requestId);
-    if (!request || request.status !== "pending") return false;
-
-    setOrders((previous) => {
-      const dateOrders = previous[request.dateKey] || {};
-      const currentOrder = dateOrders[request.employeeName];
-      if (!currentOrder) return previous;
-
-      return {
-        ...previous,
-        [request.dateKey]: {
-          ...dateOrders,
-          [request.employeeName]: {
-            ...request.editedOrder,
-            employeeName: request.employeeName,
-            submittedAt: new Date().toLocaleTimeString("en-GB"),
-            approved: false,
-            editApprovedAt: new Date().toLocaleString("en-GB"),
-          },
-        },
-      };
-    });
-
-    setEditRequests((previous) =>
-      previous.map((item) =>
-        item.id === requestId
-          ? { ...item, status: "approved", reviewedAt: new Date().toLocaleString("en-GB") }
-          : item
-      )
-    );
-
-    return true;
-  }, [editRequests]);
-
-  const rejectEditRequest = useCallback((requestId) => {
-    const exists = editRequests.some(
-      (item) => item.id === requestId && item.status === "pending"
-    );
-    if (!exists) return false;
-
-    setEditRequests((previous) =>
-      previous.map((item) =>
-        item.id === requestId
-          ? { ...item, status: "rejected", reviewedAt: new Date().toLocaleString("en-GB") }
-          : item
-      )
-    );
-
-    return true;
-  }, [editRequests]);
-
-  const deleteTodayOrder = useCallback((employeeName) => {
-    const dateKey = todayDateKey();
-    const normalized = normalizeName(employeeName);
-
-    if (!normalized) return false;
-
-    setOrders((previous) => {
-      const todayOrders = {
-        ...(previous[dateKey] || {}),
-      };
-
-      const matchingKey = Object.keys(todayOrders).find(
-        (name) => normalizeName(name) === normalized
-      );
-
-      if (!matchingKey) {
-        return previous;
-      }
-
-      delete todayOrders[matchingKey];
-
-      const next = {
-        ...previous,
-        [dateKey]: todayOrders,
-      };
-
-      if (Object.keys(todayOrders).length === 0) {
-        delete next[dateKey];
-      }
-
-      return next;
-    });
-
-    setSurplusClaims((previous) => {
-      const todayClaims = {
-        ...(previous[dateKey] || {}),
-      };
-
-      const matchingKey = Object.keys(todayClaims).find(
-        (name) => normalizeName(name) === normalized
-      );
-
-      if (matchingKey) {
-        delete todayClaims[matchingKey];
-      }
-
-      const next = {
-        ...previous,
-        [dateKey]: todayClaims,
-      };
-
-      if (Object.keys(todayClaims).length === 0) {
-        delete next[dateKey];
-      }
-
-      return next;
-    });
-
-    setEditRequests((previous) =>
-      previous.filter(
-        (request) =>
-          !(
+      const existingPending =
+        editRequests.some(
+          (request) =>
             request.dateKey === dateKey &&
-            normalizeName(request.employeeName) === normalized
-          )
-      )
-    );
+            request.employeeName ===
+              employeeName &&
+            request.status === "pending"
+        );
 
-    return true;
-  }, []);
+      if (existingPending) {
+        return false;
+      }
+
+      setEditRequests((previous) => [
+        ...previous,
+        {
+          id: `${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`,
+          dateKey,
+          employeeName,
+          originalOrder,
+          editedOrder,
+          requestedAt:
+            new Date().toLocaleString("en-GB"),
+          status: "pending",
+        },
+      ]);
+
+      return true;
+    },
+    [editRequests]
+  );
+
+  const approveEditRequest = useCallback(
+    (requestId) => {
+      const request = editRequests.find(
+        (item) => item.id === requestId
+      );
+
+      if (
+        !request ||
+        request.status !== "pending"
+      ) {
+        return false;
+      }
+
+      setOrders((previous) => {
+        const dateOrders =
+          previous[request.dateKey] || {};
+
+        const currentOrder =
+          dateOrders[request.employeeName];
+
+        if (!currentOrder) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          [request.dateKey]: {
+            ...dateOrders,
+            [request.employeeName]: {
+              ...request.editedOrder,
+              employeeName:
+                request.employeeName,
+              submittedAt:
+                new Date().toLocaleTimeString(
+                  "en-GB"
+                ),
+              approved: false,
+              editApprovedAt:
+                new Date().toLocaleString(
+                  "en-GB"
+                ),
+            },
+          },
+        };
+      });
+
+      setEditRequests((previous) =>
+        previous.map((item) =>
+          item.id === requestId
+            ? {
+                ...item,
+                status: "approved",
+                reviewedAt:
+                  new Date().toLocaleString(
+                    "en-GB"
+                  ),
+              }
+            : item
+        )
+      );
+
+      return true;
+    },
+    [editRequests]
+  );
+
+  const rejectEditRequest = useCallback(
+    (requestId) => {
+      const exists = editRequests.some(
+        (item) =>
+          item.id === requestId &&
+          item.status === "pending"
+      );
+
+      if (!exists) {
+        return false;
+      }
+
+      setEditRequests((previous) =>
+        previous.map((item) =>
+          item.id === requestId
+            ? {
+                ...item,
+                status: "rejected",
+                reviewedAt:
+                  new Date().toLocaleString(
+                    "en-GB"
+                  ),
+              }
+            : item
+        )
+      );
+
+      return true;
+    },
+    [editRequests]
+  );
+
+  /*
+   * IMPORTANT:
+   *
+   * Admin/Owner edits do NOT require approval.
+   *
+   * This function removes any stale edit request that may
+   * have been created for the Admin/Owner in an older
+   * version of the application.
+   */
+  const clearEditRequestsForEmployee =
+    useCallback((employeeName) => {
+      const normalized =
+        normalizeName(employeeName);
+
+      if (!normalized) {
+        return false;
+      }
+
+      setEditRequests((previous) =>
+        previous.filter(
+          (request) =>
+            normalizeName(
+              request.employeeName
+            ) !== normalized
+        )
+      );
+
+      return true;
+    }, []);
+
+  /* ==========================================================
+   * DELETE TODAY'S ORDER
+   * ========================================================== */
+
+  const deleteTodayOrder = useCallback(
+    (employeeName) => {
+      const dateKey = todayDateKey();
+      const normalized =
+        normalizeName(employeeName);
+
+      if (!normalized) {
+        return false;
+      }
+
+      setOrders((previous) => {
+        const todayOrders = {
+          ...(previous[dateKey] || {}),
+        };
+
+        const matchingKey =
+          Object.keys(todayOrders).find(
+            (name) =>
+              normalizeName(name) ===
+              normalized
+          );
+
+        if (!matchingKey) {
+          return previous;
+        }
+
+        delete todayOrders[matchingKey];
+
+        const next = {
+          ...previous,
+          [dateKey]: todayOrders,
+        };
+
+        if (
+          Object.keys(todayOrders).length === 0
+        ) {
+          delete next[dateKey];
+        }
+
+        return next;
+      });
+
+      setSurplusClaims((previous) => {
+        const todayClaims = {
+          ...(previous[dateKey] || {}),
+        };
+
+        const matchingKey =
+          Object.keys(todayClaims).find(
+            (name) =>
+              normalizeName(name) ===
+              normalized
+          );
+
+        if (matchingKey) {
+          delete todayClaims[matchingKey];
+        }
+
+        const next = {
+          ...previous,
+          [dateKey]: todayClaims,
+        };
+
+        if (
+          Object.keys(todayClaims).length === 0
+        ) {
+          delete next[dateKey];
+        }
+
+        return next;
+      });
+
+      setEditRequests((previous) =>
+        previous.filter(
+          (request) =>
+            !(
+              request.dateKey === dateKey &&
+              normalizeName(
+                request.employeeName
+              ) === normalized
+            )
+        )
+      );
+
+      return true;
+    },
+    []
+  );
+
+  /* ==========================================================
+   * CLEAR TODAY DATA
+   * ========================================================== */
 
   const clearTodayData = useCallback(() => {
     const dateKey = todayDateKey();
@@ -880,27 +1061,38 @@ export function AppProvider({ children }) {
     });
 
     setEditRequests((previous) =>
-      previous.filter((request) => request.dateKey !== dateKey)
+      previous.filter(
+        (request) =>
+          request.dateKey !== dateKey
+      )
     );
 
     return true;
   }, []);
 
+  /* ==========================================================
+   * APPROVE ALL TODAY
+   * ========================================================== */
+
   const approveAllToday = useCallback(() => {
     const dateKey = todayDateKey();
 
     setOrders((previous) => {
-      const todays = previous[dateKey] || {};
+      const todays =
+        previous[dateKey] || {};
 
-      const approved = Object.fromEntries(
-        Object.entries(todays).map(([name, order]) => [
-          name,
-          {
-            ...order,
-            approved: true,
-          },
-        ])
-      );
+      const approved =
+        Object.fromEntries(
+          Object.entries(todays).map(
+            ([name, order]) => [
+              name,
+              {
+                ...order,
+                approved: true,
+              },
+            ]
+          )
+        );
 
       return {
         ...previous,
@@ -909,18 +1101,23 @@ export function AppProvider({ children }) {
     });
   }, []);
 
-  const todaysOrders = orders[todayDateKey()] || {};
+  const todaysOrders =
+    orders[todayDateKey()] || {};
 
   /* ==========================================================
    * FOOD LIMITS
    * ========================================================== */
+
   const standards = useMemo(() => {
-    const today = menu[todayWeekday()];
+    const today =
+      menu[todayWeekday()];
 
     return {
       bowl1: 1,
       bowl2: 1,
-      bread: Number(today?.bread?.baseQty) || 4,
+      bread:
+        Number(today?.bread?.baseQty) ||
+        4,
       rice: 1,
       extra: 1,
       salad: 1,
@@ -928,8 +1125,9 @@ export function AppProvider({ children }) {
   }, [menu]);
 
   /* ==========================================================
-   * TOTAL SURPLUS CREATED BY PEOPLE WHO ORDERED LESS
+   * TOTAL SURPLUS
    * ========================================================== */
+
   const totalSurplus = useMemo(() => {
     const result = {
       bowl1: 0,
@@ -940,25 +1138,45 @@ export function AppProvider({ children }) {
       salad: 0,
     };
 
-    Object.values(todaysOrders).forEach((order) => {
-      Object.keys(result).forEach((key) => {
-        const standard = Number(standards[key] || 0);
-        const ordered = Number(order?.[key]?.qty || 0);
+    Object.values(todaysOrders).forEach(
+      (order) => {
+        Object.keys(result).forEach(
+          (key) => {
+            const standard =
+              Number(
+                standards[key] || 0
+              );
 
-        // Only the unused normal allowance creates surplus.
-        result[key] += Math.max(0, standard - ordered);
-      });
-    });
+            const ordered =
+              Number(
+                order?.[key]?.qty || 0
+              );
+
+            result[key] += Math.max(
+              0,
+              standard - ordered
+            );
+          }
+        );
+      }
+    );
 
     return result;
-  }, [todaysOrders, standards]);
+  }, [
+    todaysOrders,
+    standards,
+  ]);
 
   /* ==========================================================
    * REMAINING SURPLUS
    * ========================================================== */
+
   const surplusAvailability = useMemo(() => {
-    const dateKey = todayDateKey();
-    const claimsForToday = surplusClaims[dateKey] || {};
+    const dateKey =
+      todayDateKey();
+
+    const claimsForToday =
+      surplusClaims[dateKey] || {};
 
     const claimedTotals = {
       bowl1: 0,
@@ -969,78 +1187,118 @@ export function AppProvider({ children }) {
       salad: 0,
     };
 
-    Object.values(claimsForToday).forEach((employeeClaims) => {
-      /*
-       * New format is nested by employee.
-       * If an old flat format is still present, support it
-       * for availability calculation so the UI does not break.
-       */
-      if (
-        employeeClaims &&
-        typeof employeeClaims === "object"
-      ) {
-        Object.keys(claimedTotals).forEach((key) => {
-          claimedTotals[key] += Number(
-            employeeClaims[key] || 0
-          );
-        });
+    Object.values(
+      claimsForToday
+    ).forEach(
+      (employeeClaims) => {
+        if (
+          employeeClaims &&
+          typeof employeeClaims ===
+            "object"
+        ) {
+          Object.keys(
+            claimedTotals
+          ).forEach((key) => {
+            claimedTotals[key] +=
+              Number(
+                employeeClaims[key] ||
+                  0
+              );
+          });
+        }
       }
-    });
+    );
 
-    // Also support legacy flat format: { bowl1: 1, ... }
-    Object.keys(claimedTotals).forEach((key) => {
-      if (typeof claimsForToday[key] === "number") {
-        claimedTotals[key] += Number(claimsForToday[key] || 0);
+    // Legacy flat format support.
+    Object.keys(
+      claimedTotals
+    ).forEach((key) => {
+      if (
+        typeof claimsForToday[key] ===
+        "number"
+      ) {
+        claimedTotals[key] +=
+          Number(
+            claimsForToday[key] || 0
+          );
       }
     });
 
     return Object.fromEntries(
-      Object.keys(totalSurplus).map((key) => [
+      Object.keys(
+        totalSurplus
+      ).map((key) => [
         key,
         Math.max(
           0,
-          Number(totalSurplus[key] || 0) -
-            Number(claimedTotals[key] || 0)
+          Number(
+            totalSurplus[key] || 0
+          ) -
+            Number(
+              claimedTotals[key] || 0
+            )
         ),
       ])
     );
-  }, [totalSurplus, surplusClaims]);
+  }, [
+    totalSurplus,
+    surplusClaims,
+  ]);
 
   /* ==========================================================
-   * CLAIM ONE SURPLUS PORTION
+   * CLAIM SURPLUS
    * ========================================================== */
+
   const claimSurplus = useCallback(
     (employeeName, key) => {
-      const dateKey = todayDateKey();
-      const available = Number(
-        surplusAvailability[key] || 0
-      );
+      const dateKey =
+        todayDateKey();
 
-      if (!employeeName || available <= 0) {
+      const available =
+        Number(
+          surplusAvailability[key] ||
+            0
+        );
+
+      if (
+        !employeeName ||
+        available <= 0
+      ) {
         return false;
       }
 
-      setSurplusClaims((previous) => {
-        const previousToday = previous[dateKey] || {};
+      setSurplusClaims(
+        (previous) => {
+          const previousToday =
+            previous[dateKey] || {};
 
-        const todayClaims = {
-          ...previousToday,
-        };
+          const todayClaims = {
+            ...previousToday,
+          };
 
-        const employeeClaims = {
-          ...(todayClaims[employeeName] || {}),
-        };
+          const employeeClaims = {
+            ...(todayClaims[
+              employeeName
+            ] || {}),
+          };
 
-        employeeClaims[key] =
-          Number(employeeClaims[key] || 0) + 1;
+          employeeClaims[key] =
+            Number(
+              employeeClaims[key] ||
+                0
+            ) + 1;
 
-        todayClaims[employeeName] = employeeClaims;
+          todayClaims[
+            employeeName
+          ] = employeeClaims;
 
-        return {
-          ...previous,
-          [dateKey]: todayClaims,
-        };
-      });
+          return {
+            ...previous,
+            [dateKey]:
+              todayClaims,
+          };
+        }
+      );
 
       return true;
     },
@@ -1048,99 +1306,175 @@ export function AppProvider({ children }) {
   );
 
   /* ==========================================================
-   * RELEASE ONE SURPLUS PORTION
+   * RELEASE SURPLUS
    * ========================================================== */
-  const releaseSurplus = useCallback(
-    (employeeName, key) => {
-      const dateKey = todayDateKey();
 
-      setSurplusClaims((previous) => {
-        const previousToday = previous[dateKey] || {};
-        const employeeClaims = {
-          ...(previousToday[employeeName] || {}),
-        };
+  const releaseSurplus =
+    useCallback(
+      (employeeName, key) => {
+        const dateKey =
+          todayDateKey();
 
-        const current = Number(
-          employeeClaims[key] || 0
+        setSurplusClaims(
+          (previous) => {
+            const previousToday =
+              previous[dateKey] || {};
+
+            const employeeClaims = {
+              ...(previousToday[
+                employeeName
+              ] || {}),
+            };
+
+            const current =
+              Number(
+                employeeClaims[key] ||
+                  0
+              );
+
+            if (current <= 0) {
+              return previous;
+            }
+
+            if (current === 1) {
+              delete employeeClaims[
+                key
+              ];
+            } else {
+              employeeClaims[key] =
+                current - 1;
+            }
+
+            const todayClaims = {
+              ...previousToday,
+            };
+
+            if (
+              Object.keys(
+                employeeClaims
+              ).length === 0
+            ) {
+              delete todayClaims[
+                employeeName
+              ];
+            } else {
+              todayClaims[
+                employeeName
+              ] = employeeClaims;
+            }
+
+            return {
+              ...previous,
+              [dateKey]:
+                todayClaims,
+            };
+          }
         );
 
-        if (current <= 0) {
-          return previous;
-        }
-
-        if (current === 1) {
-          delete employeeClaims[key];
-        } else {
-          employeeClaims[key] = current - 1;
-        }
-
-        const todayClaims = {
-          ...previousToday,
-        };
-
-        if (Object.keys(employeeClaims).length === 0) {
-          delete todayClaims[employeeName];
-        } else {
-          todayClaims[employeeName] = employeeClaims;
-        }
-
-        return {
-          ...previous,
-          [dateKey]: todayClaims,
-        };
-      });
-
-      return true;
-    },
-    []
-  );
+        return true;
+      },
+      []
+    );
 
   /* ==========================================================
    * CROSS-TAB SYNC
    * ========================================================== */
+
   useEffect(() => {
-    const handleStorage = (event) => {
-      if (event.key === LS_KEYS.orders) {
-        setOrders(loadLS(LS_KEYS.orders, {}));
-      }
-
-      if (event.key === LS_KEYS.surplusClaims) {
-        setSurplusClaims(
-          loadLS(LS_KEYS.surplusClaims, {})
-        );
-      }
-
-      if (event.key === LS_KEYS.menu) {
-        setMenu(loadLS(LS_KEYS.menu, DEFAULT_MENU));
-      }
-
-      if (event.key === LS_KEYS.employees) {
-        setEmployees(
-          normalizeStoredEmployees(
-            loadLS(LS_KEYS.employees, null)
+    const handleStorage = (
+      event
+    ) => {
+      if (
+        event.key ===
+        LS_KEYS.orders
+      ) {
+        setOrders(
+          loadLS(
+            LS_KEYS.orders,
+            {}
           )
         );
       }
 
-      if (event.key === LS_KEYS.loginRequests) {
-        setLoginRequests(
-          loadLS(LS_KEYS.loginRequests, [])
+      if (
+        event.key ===
+        LS_KEYS.surplusClaims
+      ) {
+        setSurplusClaims(
+          loadLS(
+            LS_KEYS.surplusClaims,
+            {}
+          )
         );
       }
 
-      if (event.key === LS_KEYS.editRequests) {
+      if (
+        event.key ===
+        LS_KEYS.menu
+      ) {
+        setMenu(
+          loadLS(
+            LS_KEYS.menu,
+            DEFAULT_MENU
+          )
+        );
+      }
+
+      if (
+        event.key ===
+        LS_KEYS.employees
+      ) {
+        setEmployees(
+          normalizeStoredEmployees(
+            loadLS(
+              LS_KEYS.employees,
+              null
+            )
+          )
+        );
+      }
+
+      if (
+        event.key ===
+        LS_KEYS.loginRequests
+      ) {
+        setLoginRequests(
+          loadLS(
+            LS_KEYS.loginRequests,
+            []
+          )
+        );
+      }
+
+      if (
+        event.key ===
+        LS_KEYS.editRequests
+      ) {
         setEditRequests(
-          loadLS(LS_KEYS.editRequests, [])
+          loadLS(
+            LS_KEYS.editRequests,
+            []
+          )
         );
       }
     };
 
-    window.addEventListener("storage", handleStorage);
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
 
     return () => {
-      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
     };
   }, []);
+
+  /* ==========================================================
+   * CONTEXT VALUE
+   * ========================================================== */
 
   const value = {
     employees,
@@ -1171,9 +1505,15 @@ export function AppProvider({ children }) {
     updateMenuDay,
 
     submitOrder,
+
     requestEdit,
     approveEditRequest,
     rejectEditRequest,
+
+    // IMPORTANT:
+    // Required by EmployeePortal for direct Admin/Owner edits.
+    clearEditRequestsForEmployee,
+
     approveAllToday,
     deleteTodayOrder,
     clearTodayData,
@@ -1192,7 +1532,8 @@ export function AppProvider({ children }) {
 }
 
 export function useApp() {
-  const context = useContext(AppContext);
+  const context =
+    useContext(AppContext);
 
   if (!context) {
     throw new Error(

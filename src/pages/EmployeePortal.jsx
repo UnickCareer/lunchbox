@@ -43,20 +43,13 @@ export default function EmployeePortal({
 }) {
   const {
     currentUser,
-
     menu,
-
     logout,
     navigateTo,
-
     submitOrder,
-
     todaysOrders,
-
     standards,
-
     surplusAvailability,
-
     claimSurplus,
     releaseSurplus,
     requestEdit,
@@ -64,98 +57,116 @@ export default function EmployeePortal({
     editRequests,
   } = useApp();
 
-  const toast =
-    useToast();
+  const toast = useToast();
 
-  const weekday =
-    todayWeekday();
+  const weekday = todayWeekday();
 
-  const dayMenu =
-    menu[weekday];
+  const dayMenu = menu[weekday];
 
-  const [
-    sameBowl,
-    setSameBowl,
-  ] = useState(false);
+  const [sameBowl, setSameBowl] =
+    useState(false);
 
-  const [
-    doubledItem,
-    setDoubledItem,
-  ] = useState("dry");
+  const [doubledItem, setDoubledItem] =
+    useState("dry");
 
-  const [editingOrder, setEditingOrder] = useState(false);
+  const [editingOrder, setEditingOrder] =
+    useState(false);
 
-  /*
-   * Normal food quantities.
-   *
-   * These NEVER start above
-   * the normal daily limits.
-   */
-  const [
-    qty,
-    setQty,
-  ] = useState({
+  const [qty, setQty] = useState({
     bowl1: 1,
-
     bowl2: 1,
-
     bread:
-      dayMenu?.bread
-        ?.baseQty ?? 4,
-
+      dayMenu?.bread?.baseQty ?? 4,
     rice: 1,
-
     extra: 1,
-
     salad: 1,
   });
 
-  /*
-   * Hooks are intentionally
-   * completed before null guard.
-   */
   const safeUserName =
     currentUser?.name || "";
 
   const alreadySubmitted =
     safeUserName
-      ? todaysOrders[
-          safeUserName
-        ]
+      ? todaysOrders[safeUserName]
       : null;
 
-  // Admin/Owner orders never enter the employee edit-request approval flow.
+  /*
+   * Admin/Owner never gets an employee edit request.
+   */
   const pendingEditRequest =
     currentUser?.isAdmin
       ? null
       : safeUserName
         ? editRequests.find(
             (request) =>
-              request.employeeName === safeUserName &&
-              request.dateKey === new Date().toISOString().slice(0, 10) &&
-              request.status === "pending"
+              request.employeeName ===
+                safeUserName &&
+              request.dateKey ===
+                new Date()
+                  .toISOString()
+                  .slice(0, 10) &&
+              request.status ===
+                "pending"
           )
         : null;
 
   useEffect(() => {
-    if (!editingOrder || !alreadySubmitted) return;
+    if (
+      !editingOrder ||
+      !alreadySubmitted
+    ) {
+      return;
+    }
 
     setQty({
-      bowl1: Number(alreadySubmitted.bowl1?.qty || 0),
-      bowl2: Number(alreadySubmitted.bowl2?.qty || 0),
-      bread: Number(alreadySubmitted.bread?.qty || 0),
-      rice: Number(alreadySubmitted.rice?.qty || 0),
-      extra: Number(alreadySubmitted.extra?.qty || 0),
-      salad: Number(alreadySubmitted.salad?.qty || 0),
+      bowl1: Number(
+        alreadySubmitted.bowl1?.qty || 0
+      ),
+      bowl2: Number(
+        alreadySubmitted.bowl2?.qty || 0
+      ),
+      bread: Number(
+        alreadySubmitted.bread?.qty || 0
+      ),
+      rice: Number(
+        alreadySubmitted.rice?.qty || 0
+      ),
+      extra: Number(
+        alreadySubmitted.extra?.qty || 0
+      ),
+      salad: Number(
+        alreadySubmitted.salad?.qty || 0
+      ),
     });
 
-    const bowl1 = String(alreadySubmitted.bowl1?.name || "");
-    const bowl2 = String(alreadySubmitted.bowl2?.name || "");
-    setSameBowl(Boolean(bowl1 && bowl1 === bowl2));
-    setDoubledItem(
-      bowl1 === String(dayMenu?.gravy || "") ? "gravy" : "dry"
+    const bowl1 = String(
+      alreadySubmitted.bowl1?.name || ""
     );
-  }, [editingOrder]);
+
+    const bowl2 = String(
+      alreadySubmitted.bowl2?.name || ""
+    );
+
+    setSameBowl(
+      Boolean(
+        bowl1 &&
+          bowl1 === bowl2
+      )
+    );
+
+    setDoubledItem(
+      bowl1 ===
+        String(
+          dayMenu?.gravy || ""
+        )
+        ? "gravy"
+        : "dry"
+    );
+  }, [
+    editingOrder,
+    alreadySubmitted,
+    dayMenu,
+  ]);
 
   const bowl1Name =
     dayMenu
@@ -165,8 +176,7 @@ export default function EmployeePortal({
   const bowl2Name =
     dayMenu
       ? sameBowl
-        ? doubledItem ===
-          "dry"
+        ? doubledItem === "dry"
           ? dayMenu.dry
           : dayMenu.gravy
         : dayMenu.gravy
@@ -175,229 +185,108 @@ export default function EmployeePortal({
   const effectiveBowl1Name =
     dayMenu &&
     sameBowl &&
-    doubledItem ===
-      "gravy"
+    doubledItem === "gravy"
       ? dayMenu.gravy
       : bowl1Name;
 
-  /*
-   * ==========================================================
-   * ITEMS
-   * ==========================================================
-   */
-  const items =
-    useMemo(() => {
-      if (!dayMenu) {
-        return [];
-      }
+  const items = useMemo(() => {
+    if (!dayMenu) {
+      return [];
+    }
 
-      return [
-        {
-          label:
-            "Veg Bowl 1",
+    return [
+      {
+        label: "Veg Bowl 1",
+        name: effectiveBowl1Name,
+        qty: qty.bowl1,
+        key: "bowl1",
+        icon: Soup,
+        color: "#12B76A",
+        tag:
+          sameBowl &&
+          doubledItem === "gravy"
+            ? "Gravy"
+            : "Dry",
+      },
 
-          name:
-            effectiveBowl1Name,
+      {
+        label: "Veg Bowl 2",
+        name: bowl2Name,
+        qty: qty.bowl2,
+        key: "bowl2",
+        icon: Flame,
+        color: "#2FD98A",
+        tag: sameBowl
+          ? doubledItem === "dry"
+            ? "Dry"
+            : "Gravy"
+          : "Gravy",
+      },
 
-          qty:
-            qty.bowl1,
+      {
+        label: "Breads",
+        name: dayMenu.bread.name,
+        qty: qty.bread,
+        key: "bread",
+        icon: Wheat,
+        color: "#F5A524",
+      },
 
-          key:
-            "bowl1",
+      {
+        label: "Rice",
+        name: dayMenu.rice,
+        qty: qty.rice,
+        key: "rice",
+        icon: Sandwich,
+        color: "#C87F0A",
+      },
 
-          icon:
-            Soup,
+      {
+        label: dayMenu.extra.type,
+        name: dayMenu.extra.name,
+        qty: qty.extra,
+        key: "extra",
+        icon: IceCreamBowl,
+        color: "#12B76A",
+      },
 
-          color:
-            "#12B76A",
+      {
+        label: "Salad",
+        name: dayMenu.salad,
+        qty: qty.salad,
+        key: "salad",
+        icon: SaladIcon,
+        color: "#2FD98A",
+      },
+    ];
+  }, [
+    dayMenu,
+    qty,
+    sameBowl,
+    doubledItem,
+    effectiveBowl1Name,
+    bowl2Name,
+  ]);
 
-          tag:
-            sameBowl &&
-            doubledItem ===
-              "gravy"
-              ? "Gravy"
-              : "Dry",
-        },
+  const visibleItems =
+    sameBowl
+      ? items.filter(
+          (item) =>
+            item.key !==
+              "bowl1" &&
+            item.key !==
+              "bowl2"
+        )
+      : items;
 
-        {
-          label:
-            "Veg Bowl 2",
-
-          name:
-            bowl2Name,
-
-          qty:
-            qty.bowl2,
-
-          key:
-            "bowl2",
-
-          icon:
-            Flame,
-
-          color:
-            "#2FD98A",
-
-          tag:
-            sameBowl
-              ? doubledItem ===
-                "dry"
-                ? "Dry"
-                : "Gravy"
-              : "Gravy",
-        },
-
-        {
-          label:
-            "Breads",
-
-          name:
-            dayMenu.bread
-              .name,
-
-          qty:
-            qty.bread,
-
-          key:
-            "bread",
-
-          icon:
-            Wheat,
-
-          color:
-            "#F5A524",
-        },
-
-        {
-          label:
-            "Rice",
-
-          name:
-            dayMenu.rice,
-
-          qty:
-            qty.rice,
-
-          key:
-            "rice",
-
-          icon:
-            Sandwich,
-
-          color:
-            "#C87F0A",
-        },
-
-        {
-          label:
-            dayMenu.extra
-              .type,
-
-          name:
-            dayMenu.extra
-              .name,
-
-          qty:
-            qty.extra,
-
-          key:
-            "extra",
-
-          icon:
-            IceCreamBowl,
-
-          color:
-            "#12B76A",
-        },
-
-        {
-          label:
-            "Salad",
-
-          name:
-            dayMenu.salad,
-
-          qty:
-            qty.salad,
-
-          key:
-            "salad",
-
-          icon:
-            SaladIcon,
-
-          color:
-            "#2FD98A",
-        },
-      ];
-    }, [
-      dayMenu,
-
-      qty,
-
-      sameBowl,
-
-      doubledItem,
-
-      effectiveBowl1Name,
-
-      bowl2Name,
-    ]);
-
-  /*
-   * When "Same vegetable in both bowls" is enabled, the two
-   * individual bowl cards are intentionally hidden. The order
-   * data still contains both bowls, so submission and surplus
-   * logic continue to work normally.
-   */
-  const visibleItems = sameBowl
-    ? items.filter(
-        (item) =>
-          item.key !== "bowl1" &&
-          item.key !== "bowl2"
-      )
-    : items;
-
-  /*
-   * ==========================================================
-   * LOGOUT SAFETY
-   * ==========================================================
-   */
   if (!currentUser) {
     return null;
   }
 
-  /*
-   * ==========================================================
-   * FOOD LIMIT LOGIC
-   * ==========================================================
-   *
-   * Normal:
-   *
-   * bowl1 = 1
-   * bowl2 = 1
-   * bread = 4/5
-   * rice = 1
-   * extra = 1
-   * salad = 1
-   *
-   * If surplus is available:
-   *
-   * max =
-   * normal limit + currently available surplus
-   *
-   * But a surplus can ONLY be
-   * obtained through the
-   * "Add 1" button.
-   *
-   * The normal + button cannot
-   * consume surplus.
-   */
   const getNormalLimit =
     (key) =>
       Number(
-        standards[key] ||
-          0
+        standards[key] || 0
       );
 
   const setQtyFor =
@@ -412,17 +301,11 @@ export default function EmployeePortal({
       const currentValue =
         Number(qty[key] || 0);
 
-      /*
-       * If the employee had claimed a surplus portion
-       * and now presses minus, release that exact surplus
-       * portion back into the shared surplus pool.
-       *
-       * Example: normal limit 1, current quantity 2.
-       * Press minus -> quantity 1 + surplus becomes available again.
-       */
       if (
-        requested < currentValue &&
-        currentValue > normalLimit
+        requested <
+          currentValue &&
+        currentValue >
+          normalLimit
       ) {
         releaseSurplus(
           currentUser.name,
@@ -430,11 +313,6 @@ export default function EmployeePortal({
         );
       }
 
-      /*
-       * The normal +/- selector can never exceed the normal
-       * daily allowance. Extra portions are obtained only
-       * through the surplus Add 1 button.
-       */
       const safeValue =
         Math.min(
           Math.max(
@@ -447,16 +325,12 @@ export default function EmployeePortal({
       setQty(
         (previous) => ({
           ...previous,
-          [key]: safeValue,
+          [key]:
+            safeValue,
         })
       );
     };
 
-  /*
-   * ==========================================================
-   * CLAIM SURPLUS
-   * ==========================================================
-   */
   const handleClaim =
     (key) => {
       const available =
@@ -477,10 +351,6 @@ export default function EmployeePortal({
         return;
       }
 
-      /*
-       * Ask context to consume
-       * one actual surplus portion.
-       */
       const claimed =
         claimSurplus(
           currentUser.name,
@@ -496,14 +366,9 @@ export default function EmployeePortal({
         return;
       }
 
-      /*
-       * Now add ONE portion
-       * above the normal limit.
-       */
       setQty(
         (previous) => ({
           ...previous,
-
           [key]:
             Number(
               previous[key] ||
@@ -518,11 +383,6 @@ export default function EmployeePortal({
       );
     };
 
-  /*
-   * ==========================================================
-   * MAXIMUM FOR DISPLAY / RING
-   * ==========================================================
-   */
   const getDisplayMax =
     (key) => {
       const normal =
@@ -546,15 +406,12 @@ export default function EmployeePortal({
       (item) => ({
         label:
           item.label,
-
         qty:
           item.qty,
-
         max:
           getDisplayMax(
             item.key
           ),
-
         color:
           item.color,
       })
@@ -572,52 +429,123 @@ export default function EmployeePortal({
       }
 
       const nextOrder = {
-        bowl1: { name: effectiveBowl1Name, qty: qty.bowl1 },
-        bowl2: { name: bowl2Name, qty: qty.bowl2 },
-        bread: { name: dayMenu.bread.name, qty: qty.bread },
-        rice: { name: dayMenu.rice, qty: qty.rice },
-        extra: { name: dayMenu.extra.name, qty: qty.extra },
-        salad: { name: dayMenu.salad, qty: qty.salad },
+        bowl1: {
+          name:
+            effectiveBowl1Name,
+          qty:
+            qty.bowl1,
+        },
+
+        bowl2: {
+          name:
+            bowl2Name,
+          qty:
+            qty.bowl2,
+        },
+
+        bread: {
+          name:
+            dayMenu.bread.name,
+          qty:
+            qty.bread,
+        },
+
+        rice: {
+          name:
+            dayMenu.rice,
+          qty:
+            qty.rice,
+        },
+
+        extra: {
+          name:
+            dayMenu.extra.name,
+          qty:
+            qty.extra,
+        },
+
+        salad: {
+          name:
+            dayMenu.salad,
+          qty:
+            qty.salad,
+        },
       };
 
-      if (editingOrder && alreadySubmitted) {
-        // Admin/Owner is the approving authority, so their own edit is direct.
-        if (currentUser.isAdmin) {
-          // Remove any stale/pending edit request that may have been created
-          // before the Admin/Owner direct-edit rule was introduced.
-          clearEditRequestsForEmployee(currentUser.name);
-          submitOrder(currentUser.name, nextOrder);
+      /*
+       * EDITING AN EXISTING ORDER
+       */
+      if (
+        editingOrder &&
+        alreadySubmitted
+      ) {
+        /*
+         * ADMIN / OWNER:
+         *
+         * Direct update.
+         * No edit request.
+         * No approval.
+         */
+        if (
+          currentUser.isAdmin
+        ) {
+          clearEditRequestsForEmployee(
+            currentUser.name
+          );
+
+          submitOrder(
+            currentUser.name,
+            nextOrder
+          );
+
           setEditingOrder(false);
+
           toast(
             "Order edited successfully. No edit approval is required for Admin/Owner.",
             "success"
           );
+
           return;
         }
 
-        const created = requestEdit(
-          currentUser.name,
-          alreadySubmitted,
-          nextOrder
-        );
+        /*
+         * NORMAL EMPLOYEE:
+         *
+         * Send edit request to Admin/Owner.
+         */
+        const created =
+          requestEdit(
+            currentUser.name,
+            alreadySubmitted,
+            nextOrder
+          );
 
         if (!created) {
           toast(
             "An edit request is already pending for your order.",
             "info"
           );
+
           return;
         }
 
         setEditingOrder(false);
+
         toast(
           "Order edit request submitted successfully. Please wait for admin approval.",
           "success"
         );
+
         return;
       }
 
-      submitOrder(currentUser.name, nextOrder);
+      /*
+       * FIRST-TIME ORDER
+       */
+      submitOrder(
+        currentUser.name,
+        nextOrder
+      );
 
       toast(
         "Your thali order is locked in for today",
@@ -635,22 +563,31 @@ export default function EmployeePortal({
       <header className="sticky top-0 z-30 glass border-b border-white/20 dark:border-white/5">
         <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
+
             {adminBooking && (
               <motion.button
                 type="button"
-                whileTap={{ scale: 0.95 }}
+                whileTap={{
+                  scale: 0.95,
+                }}
                 onClick={() => {
-                  if (onBackToAdmin) {
+                  if (
+                    onBackToAdmin
+                  ) {
                     onBackToAdmin();
                     return;
                   }
 
-                  navigateTo("admin");
+                  navigateTo(
+                    "admin"
+                  );
                 }}
                 className="inline-flex items-center gap-2 rounded-full glass px-3 py-2 text-sm font-semibold text-ink-700 dark:text-cream-50/80 hover:bg-ink-900/5 dark:hover:bg-white/10 transition shrink-0"
                 aria-label="Back to Admin Dashboard"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft
+                  size={16}
+                />
 
                 <span className="hidden sm:inline">
                   Back to Dashboard
@@ -675,6 +612,7 @@ export default function EmployeePortal({
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+
             <span className="hidden sm:inline text-xs font-medium text-ink-500 dark:text-cream-50/50">
               {currentUser.name}
             </span>
@@ -697,6 +635,7 @@ export default function EmployeePortal({
       </header>
 
       <main className="max-w-3xl mx-auto px-5 pt-8">
+
         <motion.div
           initial={{
             opacity: 0,
@@ -734,10 +673,19 @@ export default function EmployeePortal({
             {weekday}. Enjoy your
             day off!
           </motion.div>
-        ) : alreadySubmitted && !editingOrder ? (
+
+        ) : alreadySubmitted &&
+          !editingOrder ? (
+
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{
+              opacity: 0,
+              y: 12,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
             className="glass-strong rounded-3xl p-8 text-center"
           >
             <p className="font-display text-xl font-semibold mb-1">
@@ -746,52 +694,77 @@ export default function EmployeePortal({
             </p>
 
             <p className="text-sm text-ink-500 dark:text-cream-50/60 mb-5">
-              Submitted at {alreadySubmitted.submittedAt}.
+              Submitted at{" "}
+              {
+                alreadySubmitted.submittedAt
+              }
+              .
             </p>
 
             {pendingEditRequest ? (
+
               <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4">
+
                 <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
                   Edit Request Pending ⏳
                 </p>
+
                 <p className="mt-1 text-xs text-ink-500 dark:text-cream-50/60">
                   Admin needs to approve or reject your requested change.
                 </p>
+
               </div>
+
             ) : (
+
               <>
                 <button
                   type="button"
-                  onClick={() => setEditingOrder(true)}
+                  onClick={() =>
+                    setEditingOrder(
+                      true
+                    )
+                  }
                   className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-emerald-950 shadow-glow hover:brightness-105 transition"
                 >
                   Edit Order
                 </button>
+
                 <p className="mt-3 text-xs text-ink-500 dark:text-cream-50/50">
                   {currentUser?.isAdmin
                     ? "Admin/Owner changes are applied directly."
                     : "Changes are sent to Admin for approval."}
                 </p>
               </>
+
             )}
           </motion.div>
+
         ) : (
+
           <>
             {editingOrder && (
               <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3">
+
                 <div>
                   <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
                     Editing your submitted order
                   </p>
+
                   <p className="text-xs text-ink-500 dark:text-cream-50/60">
                     {currentUser?.isAdmin
                       ? "Submit the change to update your order directly."
                       : "Submit the change to send an Edit Request to Admin."}
                   </p>
                 </div>
+
                 <button
                   type="button"
-                  onClick={() => setEditingOrder(false)}
+                  onClick={() =>
+                    setEditingOrder(
+                      false
+                    )
+                  }
                   className="rounded-lg glass px-3 py-2 text-xs font-semibold"
                 >
                   Cancel
@@ -808,6 +781,7 @@ export default function EmployeePortal({
             </div>
 
             <div className="flex items-center justify-between glass rounded-2xl p-4 mb-4">
+
               <div className="flex items-center gap-2">
                 <Repeat
                   size={16}
@@ -866,6 +840,7 @@ export default function EmployeePortal({
                 }}
                 className="mb-4 space-y-3"
               >
+
                 <div className="flex gap-2">
                   {[
                     "dry",
@@ -913,9 +888,12 @@ export default function EmployeePortal({
                   <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                     You added both sabzi bowls the same.
                   </p>
+
                   <p className="mt-1 text-xs text-ink-500 dark:text-cream-50/50">
-                    Both bowls will contain {
-                      doubledItem === "dry"
+                    Both bowls will contain{" "}
+                    {
+                      doubledItem ===
+                      "dry"
                         ? dayMenu.dry
                         : dayMenu.gravy
                     }.
@@ -931,47 +909,29 @@ export default function EmployeePortal({
                     key={
                       item.key
                     }
-
                     icon={
                       item.icon
                     }
-
                     label={
                       item.label
                     }
-
                     tag={
                       item.tag
                     }
-
                     name={
                       item.name
                     }
-
                     qty={
                       item.qty
                     }
-
-                    /*
-                     * IMPORTANT:
-                     *
-                     * Ordinary quantity
-                     * selector is capped
-                     * at the NORMAL limit.
-                     *
-                     * Surplus must be
-                     * claimed separately.
-                     */
                     onChange={setQtyFor(
                       item.key
                     )}
-
                     max={
                       getNormalLimit(
                         item.key
                       )
                     }
-
                     accent={
                       item.key ===
                         "bread" ||
@@ -985,23 +945,13 @@ export default function EmployeePortal({
               )}
             </div>
 
-            {/*
-             * ==================================================
-             * SURPLUS
-             * ==================================================
-             *
-             * The panel disappears automatically
-             * when surplusAvailability[key] reaches 0.
-             */}
             <SurplusPanel
               items={
                 items
               }
-
               standards={
                 standards
               }
-
               getAvailable={(
                 key
               ) =>
@@ -1011,25 +961,21 @@ export default function EmployeePortal({
                   ] || 0
                 )
               }
-
               onClaim={
                 handleClaim
               }
             />
 
             <Cart
-              employeeId={
+              employeeName={
                 currentUser.name
               }
-
               items={
                 items
               }
-
               onSubmit={
                 handleSubmit
               }
-
               disabled={
                 !dayMenu
               }

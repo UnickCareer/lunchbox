@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import {
   AnimatePresence,
   motion,
@@ -30,6 +31,15 @@ export default function Cart({
   );
 
   const handleSubmit = () => {
+    if (
+      disabled ||
+      total === 0 ||
+      typeof onSubmit !==
+        "function"
+    ) {
+      return;
+    }
+
     onSubmit();
 
     setJustSubmitted(true);
@@ -52,6 +62,7 @@ export default function Cart({
         className="fixed bottom-5 right-5 z-40 glass-strong flex items-center gap-3 rounded-full px-5 py-3 shadow-glow"
       >
         <div className="relative">
+
           <ShoppingBasket
             size={20}
             className="text-emerald-500"
@@ -76,6 +87,7 @@ export default function Cart({
               </motion.span>
             )}
           </AnimatePresence>
+
         </div>
 
         <span className="text-sm font-mono font-semibold">
@@ -102,6 +114,7 @@ export default function Cart({
             }}
             className="fixed bottom-24 right-5 z-40 glass-strong rounded-2xl px-5 py-4 flex items-center gap-3"
           >
+
             <motion.div
               initial={{
                 scale: 0,
@@ -132,6 +145,7 @@ export default function Cart({
                 Locked for today
               </p>
             </div>
+
           </motion.div>
         )}
       </AnimatePresence>
@@ -172,7 +186,9 @@ export default function Cart({
               }}
               className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-lg glass-strong rounded-t-3xl p-6 sm:p-8"
             >
+
               <div className="flex items-center justify-between mb-4">
+
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-ink-500 dark:text-cream-50/50">
                     Your order ·{" "}
@@ -193,15 +209,20 @@ export default function Cart({
                 >
                   <X size={16} />
                 </button>
+
               </div>
 
               <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-none pr-1">
+
                 {items.map(
                   (item) => (
                     <div
-                      key={item.label}
+                      key={
+                        item.label
+                      }
                       className="flex items-center justify-between rounded-xl bg-ink-900/[0.03] dark:bg-white/5 px-4 py-3"
                     >
+
                       <span className="text-sm font-body">
                         {item.label}
                       </span>
@@ -210,9 +231,11 @@ export default function Cart({
                         {item.name} ×{" "}
                         {item.qty}
                       </span>
+
                     </div>
                   )
                 )}
+
               </div>
 
               <motion.button
@@ -231,6 +254,7 @@ export default function Cart({
                 <Send size={16} />
                 Submit order
               </motion.button>
+
             </motion.div>
           </>
         )}
