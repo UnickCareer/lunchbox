@@ -158,47 +158,66 @@ export default function AdminDashboard() {
         : "Regular";
     };
 
-    const formatItem = (item) => {
-      if (!item || getQty(item) <= 0) return "";
-      return `${item.name || "Item"} × ${getQty(item)}`;
-    };
-
     const lines = [
-      "🍱 OFFICE LUNCH ORDER",
-      `Date: ${new Date().toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })}`,
-      `Total approved orders: ${orders.length}`,
-      "",
-    ];
+  "🍱 OFFICE LUNCH ORDER",
+  `Date: ${new Date().toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })}`,
+  `Total approved orders: ${orders.length}`,
+  "",
+];
 
-    orders.forEach((order, index) => {
-      const orderType = getOrderType(order);
+const itemKeys = [
+  ["bowl1", "Sabzi Bowl 1"],
+  ["bowl2", "Sabzi Bowl 2"],
+  ["bread", "Bread"],
+  ["rice", "Rice"],
+  ["extra", "Extra"],
+  ["salad", "Salad"],
+];
 
-      lines.push(
-        `${index + 1}. ${order.employeeName || "Employee"} — ${orderType}`
+orders.forEach((order, index) => {
+  const changes = [];
+
+  itemKeys.forEach(([key, label]) => {
+    const actualQty = getQty(order?.[key]);
+    const standardQty = Number(standards?.[key] || 0);
+
+    if (actualQty < standardQty) {
+      const difference = standardQty - actualQty;
+      const itemName = order?.[key]?.name || label;
+
+      changes.push(
+        `- ${itemName}${difference > 1 ? ` × ${difference}` : ""}`
       );
+    }
 
-      [
-        ["Sabzi Bowl 1", order.bowl1],
-        ["Sabzi Bowl 2", order.bowl2],
-        ["Bread", order.bread],
-        ["Rice", order.rice],
-        ["Extra", order.extra],
-        ["Salad", order.salad],
-      ].forEach(([label, item]) => {
-        const formatted = formatItem(item);
-        if (formatted) {
-          lines.push(`   ${label}: ${formatted}`);
-        }
-      });
+    if (actualQty > standardQty) {
+      const difference = actualQty - standardQty;
+      const itemName = order?.[key]?.name || label;
 
-      lines.push("");
-    });
+      changes.push(
+        `+ ${itemName}${difference > 1 ? ` × ${difference}` : ""}`
+      );
+    }
+  });
 
-    lines.push("Please prepare the above approved lunch orders.");
+  const employeeName = order.employeeName || "Employee";
+
+  if (changes.length === 0) {
+    lines.push(`${index + 1}. ${employeeName} — Regular`);
+  } else {
+    lines.push(
+      `${index + 1}. ${employeeName} — Regular (${changes.join(", ")})`
+    );
+  }
+
+  lines.push("");
+});
+
+lines.push("Please prepare the above approved lunch orders.");
 
     const phone = String(FOOD_SENDER_PHONE).replace(/\D/g, "");
     // The project is currently set for India. Keep FOOD_SENDER_PHONE as a
