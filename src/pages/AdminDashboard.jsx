@@ -17,6 +17,7 @@ import {
   BellRing,
   Utensils,
   Send,
+  Edit3,
 } from "lucide-react";
 
 import { useApp } from "../context/AppContext.jsx";
@@ -33,12 +34,14 @@ import MenuSettings from "../components/admin/MenuSettings.jsx";
 
 import AccessRequests from "../components/admin/AccessRequests.jsx";
 
+import EditRequests from "../components/admin/EditRequests.jsx";
+
 import EmployeePortal from "./EmployeePortal.jsx";
 
 // Replace this 10-digit number with the real food sender / kitchen WhatsApp number.
 // Country code is intentionally NOT included here.
-// For India, wa.me will automatically use +91.
-const FOOD_SENDER_PHONE = "9876543210";
+// For India, wa.me will use +91 automatically.
+const FOOD_SENDER_PHONE = "9896510890";
 
 const TABS = [
   {
@@ -60,6 +63,12 @@ const TABS = [
   },
 
   {
+    key: "edit-requests",
+    label: "Edit Order Requests",
+    icon: Edit3,
+  },
+
+  {
     key: "menu",
     label: "Menu Settings",
     icon: CalendarClock,
@@ -71,6 +80,7 @@ export default function AdminDashboard() {
     currentUser,
     logout,
     loginRequests,
+    editRequests,
     todaysOrders,
     standards,
   } = useApp();
@@ -99,6 +109,12 @@ export default function AdminDashboard() {
   const requestCount =
     loginRequests.length;
 
+  const pendingEditRequestCount =
+    editRequests.filter(
+      (request) =>
+        request.status === "pending"
+    ).length;
+
   /*
    * ==========================================================
    * SEND APPROVED ORDERS TO WHATSAPP
@@ -106,26 +122,40 @@ export default function AdminDashboard() {
    *
    * Rules:
    *
-   * 1. Employee names are NEVER shown.
-   * 2. Special people are P1, P2, P3...
-   * 3. A completely normal lunch = Regular.
-   * 4. Normal lunch + surplus item = Regular + surplus.
-   * 5. Modified quantities = Special.
-   * 6. Only Rice = "Only Rice".
-   * 7. Bread is displayed as "Roti".
-   * 8. Normal/default items are NOT listed for a regular order.
+   * Regular:
+   * Employee ordered the complete normal lunch.
+   *
+   * Special:
+   * Employee changed anything:
+   * - removed food
+   * - added surplus
+   * - selected same sabzi
+   *
+   * Employee names are NEVER shown.
+   *
+   * Special employees are shown as:
+   *
+   * P1 : Only Rice
+   * P2 : +1 Kheer
+   * P3 : Roti × 2, Rice, Salad
+   *
+   * If an employee has a normal lunch + extra item:
+   *
+   * P1 : Regular + 1 Kheer extra
    */
 
   const sendForOrder = () => {
-    const orders = Object.values(
-      todaysOrders || {}
-    ).filter(
-      (order) =>
-        order?.approved
-    );
+    const orders =
+      Object.values(
+        todaysOrders || {}
+      ).filter(
+        (order) =>
+          order?.approved
+      );
 
     if (
-      orders.length === 0
+      orders.length ===
+      0
     ) {
       toast(
         "Approve at least one lunch order before sending it to the food sender.",
@@ -135,146 +165,139 @@ export default function AdminDashboard() {
       return;
     }
 
+    const getQty =
+      (item) =>
+        Number(
+          item?.qty || 0
+        );
+
     /*
-     * ----------------------------------------------------------
-     * Quantity helper
-     * ----------------------------------------------------------
+     * ========================================================
+     * ORDER TYPE
+     * ========================================================
      */
-    const getQty = (
-      item
-    ) =>
-      Number(
-        item?.qty || 0
+
+    const getOrderType =
+      (order) => {
+        const keys = [
+          "bowl1",
+          "bowl2",
+          "bread",
+          "rice",
+          "extra",
+          "salad",
+        ];
+
+        const hasQuantityModification =
+          keys.some(
+            (key) =>
+              getQty(
+                order?.[key]
+              ) !==
+              Number(
+                standards?.[
+                  key
+                ] || 0
+              )
+          );
+
+        const sameSabzi =
+          order?.bowl1?.name &&
+          order?.bowl2?.name &&
+          String(
+            order.bowl1.name
+          )
+            .trim()
+            .toLowerCase() ===
+            String(
+              order.bowl2.name
+            )
+              .trim()
+              .toLowerCase();
+
+        return (
+          hasQuantityModification ||
+          sameSabzi
+        )
+          ? "Special"
+          : "Regular";
+      };
+
+    const regularOrders =
+      orders.filter(
+        (order) =>
+          getOrderType(
+            order
+          ) === "Regular"
+      );
+
+    const specialOrders =
+      orders.filter(
+        (order) =>
+          getOrderType(
+            order
+          ) === "Special"
       );
 
     /*
-     * ----------------------------------------------------------
-     * Food keys
-     * ----------------------------------------------------------
-     */
-    const FOOD_KEYS = [
-      "bowl1",
-      "bowl2",
-      "bread",
-      "rice",
-      "extra",
-      "salad",
-    ];
-
-    /*
-     * ----------------------------------------------------------
-     * Display name
-     * ----------------------------------------------------------
+     * ========================================================
+     * FOOD NAME
+     * ========================================================
      *
-     * Bread is always shown as Roti.
+     * Bread is ALWAYS displayed as Roti.
      */
-    const getDisplayName = (
-      key,
-      item
-    ) => {
-      if (
-        key === "bread"
-      ) {
-        return "Roti";
-      }
 
-      return (
-        item?.name ||
-        "Item"
-      );
-    };
-
-    /*
-     * ----------------------------------------------------------
-     * Check whether quantity is exactly the normal standard.
-     * ----------------------------------------------------------
-     */
-    const isNormalQuantity =
+    const getDisplayName =
       (
         key,
-        order
+        item
       ) => {
-        const actual =
-          getQty(
-            order?.[key]
-          );
-
-        const standard =
-          Number(
-            standards?.[
-              key
-            ] || 0
-          );
+        if (
+          key === "bread"
+        ) {
+          return "Roti";
+        }
 
         return (
-          actual ===
-          standard
+          item?.name ||
+          "Item"
         );
       };
 
     /*
-     * ----------------------------------------------------------
-     * Check whether the two bowls contain the same sabzi.
-     * ----------------------------------------------------------
+     * ========================================================
+     * SPECIAL ORDER DESCRIPTION
+     * ========================================================
      */
-    const hasSameSabzi =
+
+    const getSpecialDescription =
       (order) => {
-        const bowl1 =
-          String(
-            order?.bowl1
-              ?.name || ""
-          )
-            .trim()
-            .toLowerCase();
+        const reductions =
+          [];
 
-        const bowl2 =
-          String(
-            order?.bowl2
-              ?.name || ""
-          )
-            .trim()
-            .toLowerCase();
+        const additions =
+          [];
 
-        return (
-          Boolean(
-            bowl1 &&
-              bowl2
-          ) &&
-          bowl1 === bowl2
-        );
-      };
+        const normalItems =
+          [];
 
-    /*
-     * ----------------------------------------------------------
-     * Determine surplus-only changes.
-     * ----------------------------------------------------------
-     *
-     * Example:
-     *
-     * Standard:
-     * Kheer = 1
-     *
-     * Actual:
-     * Kheer = 2
-     *
-     * Result:
-     * +1 Kheer
-     *
-     * This is NOT considered a normal quantity modification.
-     * It is "Regular + surplus".
-     */
-    const getPositiveExtras =
-      (order) => {
-        const extras = [];
+        const keys = [
+          "bowl1",
+          "bowl2",
+          "bread",
+          "rice",
+          "extra",
+          "salad",
+        ];
 
-        FOOD_KEYS.forEach(
+        keys.forEach(
           (key) => {
-            const actual =
+            const actualQty =
               getQty(
                 order?.[key]
               );
 
-            const standard =
+            const standardQty =
               Number(
                 standards?.[
                   key
@@ -282,273 +305,10 @@ export default function AdminDashboard() {
               );
 
             const difference =
-              actual -
-              standard;
+              actualQty -
+              standardQty;
 
-            if (
-              difference >
-              0
-            ) {
-              extras.push({
-                key,
-                name:
-                  getDisplayName(
-                    key,
-                    order?.[
-                      key
-                    ]
-                  ),
-                amount:
-                  difference,
-              });
-            }
-          }
-        );
-
-        return extras;
-      };
-
-    /*
-     * ----------------------------------------------------------
-     * Determine whether an order is completely regular.
-     * ----------------------------------------------------------
-     *
-     * A same-sabzi selection is special because the actual food
-     * selection has changed, even if quantities remain normal.
-     */
-    const isCompletelyRegular =
-      (order) => {
-        if (
-          hasSameSabzi(
-            order
-          )
-        ) {
-          return false;
-        }
-
-        return FOOD_KEYS.every(
-          (key) =>
-            isNormalQuantity(
-              key,
-              order
-            )
-        );
-      };
-
-    /*
-     * ----------------------------------------------------------
-     * Determine whether an order is:
-     *
-     * A) Regular
-     * B) Regular + surplus
-     * C) Special
-     * ----------------------------------------------------------
-     */
-    const getOrderCategory =
-      (order) => {
-        const regular =
-          isCompletelyRegular(
-            order
-          );
-
-        if (
-          regular
-        ) {
-          return "Regular";
-        }
-
-        /*
-         * A regular lunch with ONLY positive quantity changes
-         * represents surplus/additional food.
-         *
-         * Example:
-         *
-         * Normal:
-         * bowl1 1
-         * bowl2 1
-         * bread 4
-         * rice 1
-         * extra 1
-         * salad 1
-         *
-         * Actual:
-         * same + Kheer 2
-         *
-         * => Regular + 1 Kheer extra
-         */
-        const hasNegativeChange =
-          FOOD_KEYS.some(
-            (key) => {
-              const actual =
-                getQty(
-                  order?.[
-                    key
-                  ]
-                );
-
-              const standard =
-                Number(
-                  standards?.[
-                    key
-                  ] || 0
-                );
-
-              return (
-                actual <
-                standard
-              );
-            }
-          );
-
-        const sameSabzi =
-          hasSameSabzi(
-            order
-          );
-
-        const positiveExtras =
-          getPositiveExtras(
-            order
-          );
-
-        if (
-          !hasNegativeChange &&
-          !sameSabzi &&
-          positiveExtras.length >
-            0
-        ) {
-          return "RegularSurplus";
-        }
-
-        return "Special";
-      };
-
-    /*
-     * ----------------------------------------------------------
-     * Split approved orders.
-     * ----------------------------------------------------------
-     */
-    const regularOrders =
-      orders.filter(
-        (order) =>
-          getOrderCategory(
-            order
-          ) === "Regular"
-      );
-
-    const regularSurplusOrders =
-      orders.filter(
-        (order) =>
-          getOrderCategory(
-            order
-          ) ===
-          "RegularSurplus"
-      );
-
-    const specialOrders =
-      orders.filter(
-        (order) =>
-          getOrderCategory(
-            order
-          ) === "Special"
-      );
-
-    /*
-     * ----------------------------------------------------------
-     * Build description for a Regular + Surplus order.
-     * ----------------------------------------------------------
-     *
-     * Example:
-     *
-     * Regular +1 Kheer extra
-     *
-     * Multiple surplus items:
-     *
-     * Regular +1 Kheer, +2 Roti extra
-     */
-    const getRegularSurplusText =
-      (order) => {
-        const extras =
-          getPositiveExtras(
-            order
-          );
-
-        if (
-          extras.length ===
-          0
-        ) {
-          return "Regular";
-        }
-
-        const extraText =
-          extras
-            .map(
-              ({
-                name,
-                amount,
-              }) =>
-                `+${amount} ${name}`
-            )
-            .join(
-              ", "
-            );
-
-        return `Regular ${extraText} extra`;
-      };
-
-    /*
-     * ----------------------------------------------------------
-     * Build Special order description.
-     * ----------------------------------------------------------
-     *
-     * IMPORTANT:
-     *
-     * We do NOT show rejected/default items.
-     *
-     * Example:
-     *
-     * Employee orders:
-     * Rice = 1
-     * Everything else = 0
-     *
-     * Result:
-     *
-     * P1 : Only Rice
-     *
-     * Example:
-     *
-     * Rice = 1
-     * Roti = 6
-     * Salad = 2
-     *
-     * Result:
-     *
-     * P1 : Only Rice, +2 Roti, +1 Salad
-     */
-    const getSpecialText =
-      (order) => {
-        const selectedItems =
-          [];
-
-        const quantityChanges =
-          [];
-
-        FOOD_KEYS.forEach(
-          (key) => {
-            const actual =
-              getQty(
-                order?.[
-                  key
-                ]
-              );
-
-            const standard =
-              Number(
-                standards?.[
-                  key
-                ] || 0
-              );
-
-            const name =
+            const itemName =
               getDisplayName(
                 key,
                 order?.[
@@ -557,153 +317,295 @@ export default function AdminDashboard() {
               );
 
             /*
-             * If an item is completely removed from the order,
-             * do NOT display "-1 Item".
-             *
-             * We only care about what the food sender needs
-             * to prepare.
+             * Employee ordered LESS.
              */
             if (
-              actual ===
+              difference <
               0
             ) {
-              return;
-            }
-
-            /*
-             * If quantity is above normal:
-             *
-             * +2 Roti
-             */
-            if (
-              actual >
-              standard
-            ) {
-              const difference =
-                actual -
-                standard;
-
-              quantityChanges.push(
-                `+${difference} ${name}`
+              reductions.push(
+                {
+                  name:
+                    itemName,
+                  qty:
+                    Math.abs(
+                      difference
+                    ),
+                }
               );
-
-              return;
             }
 
             /*
-             * If quantity is below normal but still greater than
-             * zero, show what is actually required.
-             *
-             * Example:
-             *
-             * Standard Roti = 4
-             * Actual Roti = 2
-             *
-             * Show:
-             *
-             * Roti × 2
+             * Employee ordered MORE.
              */
             if (
-              actual <
-                standard &&
-              actual >
-                0
+              difference >
+              0
             ) {
-              selectedItems.push(
-                `${name} × ${actual}`
+              additions.push(
+                {
+                  name:
+                    itemName,
+                  qty:
+                    difference,
+                }
               );
-
-              return;
             }
 
             /*
-             * Normal quantity.
+             * Normal item.
              *
-             * For a Special order we need to know what the person
-             * still wants.
+             * Used to detect "Only Rice",
+             * "Only Roti + Salad", etc.
              */
             if (
-              actual ===
-              standard
+              actualQty >
+              0
             ) {
-              selectedItems.push(
-                name
+              normalItems.push(
+                {
+                  key,
+                  name:
+                    itemName,
+                  qty:
+                    actualQty,
+                }
               );
             }
           }
         );
 
         /*
-         * ------------------------------------------------------
-         * If only one normal item remains, simplify:
+         * ====================================================
+         * ONLY-ITEM LOGIC
+         * ====================================================
+         *
+         * Example:
+         *
+         * Rice = 1
+         * Everything else = 0
+         *
+         * Result:
          *
          * Only Rice
-         * Only Roti
-         * Only Salad
-         * ------------------------------------------------------
+         *
+         * NOT:
+         *
+         * -1 Mix Veg
+         * -1 Paneer
+         * -4 Roti
+         * etc.
          */
+
+        const positiveItems =
+          normalItems.filter(
+            (item) =>
+              item.qty > 0
+          );
+
         if (
-          selectedItems.length ===
-            1 &&
-          quantityChanges.length ===
+          positiveItems.length ===
+          1
+        ) {
+          const onlyItem =
+            positiveItems[0];
+
+          return `Only ${onlyItem.name}`;
+        }
+
+        /*
+         * ====================================================
+         * TWO OR MORE REMAINING ITEMS
+         * ====================================================
+         *
+         * Example:
+         *
+         * Rice + 2 Roti + Salad
+         *
+         * Result:
+         *
+         * Roti × 2, Rice, Salad
+         */
+
+        const hasMajorReduction =
+          reductions.length >
+          0;
+
+        const hasAddition =
+          additions.length >
+          0;
+
+        /*
+         * If the employee removed items and still has
+         * some normal items, show ONLY what they actually
+         * ordered.
+         *
+         * This keeps the WhatsApp message short.
+         */
+
+        if (
+          hasMajorReduction &&
+          !hasAddition
+        ) {
+          const actualItems =
+            positiveItems.map(
+              (item) => {
+                if (
+                  item.qty ===
+                  1
+                ) {
+                  return item.name;
+                }
+
+                return `${item.name} × ${item.qty}`;
+              }
+            );
+
+          if (
+            actualItems.length >
             0
-        ) {
-          return `Only ${selectedItems[0]}`;
+          ) {
+            return actualItems.join(
+              ", "
+            );
+          }
+
+          return "No food selected";
         }
 
         /*
-         * If the order contains one "Only X" style item plus
-         * quantity additions, preserve that compact wording.
+         * ====================================================
+         * REGULAR + EXTRA
+         * ====================================================
+         *
+         * Example:
+         *
+         * Normal lunch + 1 Kheer
+         *
+         * Result:
+         *
+         * Regular + 1 Kheer extra
          */
+
+        const hasOnlyAdditions =
+          !hasMajorReduction &&
+          hasAddition;
+
         if (
-          selectedItems.length ===
-            1
+          hasOnlyAdditions
         ) {
-          return `Only ${selectedItems[0]}, ${quantityChanges.join(
-            ", "
-          )}`;
+          const extraText =
+            additions
+              .map(
+                (
+                  item
+                ) =>
+                  `${item.qty} ${item.name}`
+              )
+              .join(
+                ", "
+              );
+
+          return `Regular + ${extraText} extra`;
         }
 
         /*
-         * Otherwise combine actual selected food and additions.
+         * ====================================================
+         * MIXED REDUCTION + ADDITION
+         * ====================================================
+         *
+         * Example:
+         *
+         * Rice reduced + Kheer added
          */
-        const parts = [
-          ...selectedItems,
-          ...quantityChanges,
-        ];
+
+        const parts = [];
+
+        if (
+          reductions.length >
+          0
+        ) {
+          const reducedText =
+            reductions
+              .map(
+                (
+                  item
+                ) =>
+                  `${item.name} × ${item.qty}`
+              )
+              .join(
+                ", "
+              );
+
+          parts.push(
+            `-${reducedText}`
+          );
+        }
+
+        if (
+          additions.length >
+          0
+        ) {
+          const addedText =
+            additions
+              .map(
+                (
+                  item
+                ) =>
+                  `+${item.qty} ${item.name}`
+              )
+              .join(
+                ", "
+              );
+
+          parts.push(
+            addedText
+          );
+        }
 
         /*
-         * Same sabzi special case.
+         * Same sabzi with otherwise normal quantities.
          */
+        const sameSabzi =
+          order?.bowl1?.name &&
+          order?.bowl2?.name &&
+          String(
+            order.bowl1.name
+          )
+            .trim()
+            .toLowerCase() ===
+            String(
+              order.bowl2.name
+            )
+              .trim()
+              .toLowerCase();
+
         if (
           parts.length ===
             0 &&
-          hasSameSabzi(
-            order
-          )
+          sameSabzi
         ) {
           return `Same Sabzi - ${order.bowl1.name}`;
         }
 
-        return parts.join(
-          ", "
-        );
+        if (
+          parts.length >
+          0
+        ) {
+          return parts.join(
+            ", "
+          );
+        }
+
+        return "Special";
       };
 
     /*
-     * ----------------------------------------------------------
-     * Build final WhatsApp message.
-     * ----------------------------------------------------------
-     *
-     * Regular count:
-     * Completely normal orders.
-     *
-     * Special count:
-     * Orders that actually require special preparation.
-     *
-     * Regular + surplus is shown separately and is NOT counted
-     * as Special.
+     * ========================================================
+     * FINAL WHATSAPP HEADER
+     * ========================================================
      */
+
     const lines = [
       "🍱 OFFICE LUNCH ORDER Sparsh Panipat",
 
@@ -720,70 +622,34 @@ export default function AdminDashboard() {
 
       "",
 
-      `Regular: ${
-        regularOrders.length
-      }`,
+      `Regular : ${regularOrders.length}`,
 
-      `Special: ${
-        regularSurplusOrders.length +
-        specialOrders.length
-      }`,
+      `Special : ${specialOrders.length}`,
 
       "",
     ];
 
     /*
-     * ----------------------------------------------------------
-     * Regular + surplus orders
-     * ----------------------------------------------------------
+     * ========================================================
+     * SPECIAL ORDERS
+     * ========================================================
      *
-     * These are anonymous P numbers too.
+     * NEVER expose employee names.
      */
-    regularSurplusOrders.forEach(
-      (
-        order,
-        index
-      ) => {
-        const personNumber =
-          index + 1;
 
-        lines.push(
-          `P${personNumber} : ${getRegularSurplusText(
-            order
-          )}`
-        );
-      }
-    );
-
-    /*
-     * ----------------------------------------------------------
-     * Actual Special orders
-     * ----------------------------------------------------------
-     *
-     * Continue P numbering after Regular + surplus orders.
-     */
     specialOrders.forEach(
       (
         order,
         index
       ) => {
-        const personNumber =
-          regularSurplusOrders.length +
-          index +
-          1;
-
-        const text =
-          getSpecialText(
+        const description =
+          getSpecialDescription(
             order
           );
 
-        if (
-          text
-        ) {
-          lines.push(
-            `P${personNumber} : ${text}`
-          );
-        }
+        lines.push(
+          `P${index + 1} :  ${description}`
+        );
       }
     );
 
@@ -794,10 +660,11 @@ export default function AdminDashboard() {
     );
 
     /*
-     * ----------------------------------------------------------
-     * WhatsApp deeplink
-     * ----------------------------------------------------------
+     * ========================================================
+     * WHATSAPP DEEPLINK
+     * ========================================================
      */
+
     const phone =
       String(
         FOOD_SENDER_PHONE
@@ -806,15 +673,6 @@ export default function AdminDashboard() {
         ""
       );
 
-    /*
-     * For a normal 10-digit Indian number:
-     *
-     * 9876543210
-     *
-     * becomes:
-     *
-     * 919876543210
-     */
     const whatsappPhone =
       phone.length ===
       10
@@ -823,7 +681,9 @@ export default function AdminDashboard() {
 
     const whatsappUrl =
       `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
-        lines.join("\n")
+        lines.join(
+          "\n"
+        )
       )}`;
 
     window.open(
@@ -833,12 +693,22 @@ export default function AdminDashboard() {
     );
   };
 
-  if (bookingLunch) {
+  /*
+   * ==========================================================
+   * ADMIN BOOK MY LUNCH
+   * ==========================================================
+   */
+
+  if (
+    bookingLunch
+  ) {
     return (
       <EmployeePortal
-        adminBooking={true}
+        adminBooking
         onBackToAdmin={() =>
-          setBookingLunch(false)
+          setBookingLunch(
+            false
+          )
         }
       />
     );
@@ -998,6 +868,17 @@ export default function AdminDashboard() {
                       }
                     </span>
                   )}
+
+                {key ===
+                  "edit-requests" &&
+                  pendingEditRequestCount >
+                    0 && (
+                    <span className="min-w-5 h-5 px-1 rounded-full bg-amber-400 text-emerald-950 text-[10px] font-bold flex items-center justify-center">
+                      {
+                        pendingEditRequestCount
+                      }
+                    </span>
+                  )}
               </button>
             )
           )}
@@ -1077,6 +958,11 @@ export default function AdminDashboard() {
             {tab ===
               "requests" && (
               <AccessRequests />
+            )}
+
+            {tab ===
+              "edit-requests" && (
+              <EditRequests />
             )}
 
             {tab ===
