@@ -191,6 +191,21 @@ export function AppProvider({ children }) {
   const cloudSyncTimerRef = useRef(null);
   const cloudSyncVersionRef = useRef(0);
 
+  /*
+   * ==========================================================
+   * GENERIC CLOUD STATE SYNC
+   * ==========================================================
+   *
+   * IMPORTANT:
+   *
+   * `orders` is intentionally NOT written here anymore.
+   *
+   * Orders are now saved through the atomic
+   * `upsert_lunch_order()` PostgreSQL function.
+   *
+   * This prevents an older browser snapshot from overwriting
+   * a newer employee order.
+   */
   const persistCloud = useCallback(async (snapshot) => {
     if (!isSupabaseConfigured || !cloudReady) return;
 
@@ -201,7 +216,6 @@ export function AppProvider({ children }) {
       .update({
         employees: snapshot.employees,
         menu: snapshot.menu,
-        orders: snapshot.orders,
         surplus_claims: snapshot.surplusClaims,
         login_requests: snapshot.loginRequests,
         edit_requests: snapshot.editRequests,
@@ -221,7 +235,10 @@ export function AppProvider({ children }) {
   }, [cloudReady]);
 
   /*
-   * One debounced writer for the complete shared state.
+   * One debounced writer for the complete shared state,
+   * EXCEPT ORDERS.
+   *
+   * Orders have their own atomic database operation.
    */
   useEffect(() => {
     if (!isSupabaseConfigured || !cloudReady) return;
@@ -239,7 +256,6 @@ export function AppProvider({ children }) {
       void persistCloud({
         employees,
         menu,
-        orders,
         surplusClaims,
         loginRequests,
         editRequests,
@@ -255,7 +271,6 @@ export function AppProvider({ children }) {
   }, [
     employees,
     menu,
-    orders,
     surplusClaims,
     loginRequests,
     editRequests,
@@ -753,25 +768,106 @@ export function AppProvider({ children }) {
    * ORDERS
    * ========================================================== */
 
+  /*
+   * IMPORTANT CONCURRENCY FIX
+   *
+   * Orders are no longer saved through the generic
+   * office_app_state UPDATE.
+   *
+   * When Supabase is configured, this function calls the
+   * PostgreSQL function:
+   *
+   *   upsert_lunch_order()
+   *
+   * That function locks the shared row and updates only
+   * the submitting employee's order.
+   *
+   * This prevents:
+   *
+   * Employee A submits
+   *       +
+   * Employee B has an older snapshot
+   *       ↓
+   * Employee B overwrites Employee A
+   *
+   * from happening.
+   */
   const submitOrder = useCallback(
-    (employeeName, order) => {
+    async (employeeName, order) => {
       const dateKey = todayDateKey();
+
+      const nextOrder = {
+        ...order,
+        employeeName,
+        submittedAt:
+          new Date().toLocaleTimeString("en-GB"),
+        approved: false,
+      };
+
+      /*
+       * ========================================================
+       * SUPABASE MODE
+       * ========================================================
+       */
+
+      if (
+        isSupabaseConfigured &&
+        cloudReady
+      ) {
+        const { data, error } =
+          await supabase.rpc(
+            "upsert_lunch_order",
+            {
+              p_date_key: dateKey,
+              p_employee_name: employeeName,
+              p_order: nextOrder,
+            }
+          );
+
+        if (error) {
+          console.error(
+            "Atomic order save failed:",
+            error
+          );
+
+          setCloudStatus("error");
+
+          return false;
+        }
+
+        /*
+         * The RPC returns the complete latest
+         * orders object.
+         */
+        if (
+          data &&
+          typeof data === "object"
+        ) {
+          setOrders(data);
+        }
+
+        setCloudStatus("online");
+
+        return true;
+      }
+
+      /*
+       * ========================================================
+       * LOCAL / OFFLINE MODE
+       * ========================================================
+       */
 
       setOrders((previous) => ({
         ...previous,
         [dateKey]: {
           ...(previous[dateKey] || {}),
-          [employeeName]: {
-            ...order,
-            employeeName,
-            submittedAt:
-              new Date().toLocaleTimeString("en-GB"),
-            approved: false,
-          },
+          [employeeName]: nextOrder,
         },
       }));
+
+      return true;
     },
-    []
+    [cloudReady]
   );
 
   /* ==========================================================
