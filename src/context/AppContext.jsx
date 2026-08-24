@@ -211,19 +211,30 @@ export function AppProvider({ children }) {
 
     const version = ++cloudSyncVersionRef.current;
 
-    const { error } = await supabase
+    const basePayload = {
+      employees: snapshot.employees,
+      menu: snapshot.menu,
+      surplus_claims: snapshot.surplusClaims,
+      login_requests: snapshot.loginRequests,
+      updated_at: new Date().toISOString(),
+    };
+
+    let { error } = await supabase
       .from("office_app_state")
       .update({
-        employees: snapshot.employees,
-        menu: snapshot.menu,
-        surplus_claims: snapshot.surplusClaims,
-        login_requests: snapshot.loginRequests,
+        ...basePayload,
         edit_requests: snapshot.editRequests,
-        updated_at: new Date().toISOString(),
       })
       .eq("id", 1);
 
-    // Ignore an old queued request if a newer local state was already saved.
+    // Compatibility with an older table that does not yet have edit_requests.
+    if (error && /edit_requests|column/i.test(error.message || "")) {
+      ({ error } = await supabase
+        .from("office_app_state")
+        .update(basePayload)
+        .eq("id", 1));
+    }
+
     if (version !== cloudSyncVersionRef.current) return;
 
     if (error) {
@@ -233,7 +244,6 @@ export function AppProvider({ children }) {
       setCloudStatus("online");
     }
   }, [cloudReady]);
-
   /*
    * One debounced writer for the complete shared state,
    * EXCEPT ORDERS.
@@ -286,13 +296,27 @@ export function AppProvider({ children }) {
     const loadCloud = async () => {
       setCloudStatus("connecting");
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("office_app_state")
         .select(
           "id, employees, menu, orders, surplus_claims, login_requests, edit_requests, updated_at"
         )
         .eq("id", 1)
         .maybeSingle();
+
+      // Older schema compatibility: load without edit_requests if that
+      // column has not been added yet.
+      if (error && /edit_requests|column/i.test(error.message || "")) {
+        const fallback = await supabase
+          .from("office_app_state")
+          .select(
+            "id, employees, menu, orders, surplus_claims, login_requests, updated_at"
+          )
+          .eq("id", 1)
+          .maybeSingle();
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (cancelled) return;
 
@@ -303,11 +327,9 @@ export function AppProvider({ children }) {
         return;
       }
 
-      // Any state loaded here is already the source of truth from Supabase.
       skipNextCloudSyncRef.current = true;
 
       if (!data) {
-        // First device becomes the initial source of the shared state.
         const initialState = {
           id: 1,
           employees,
@@ -319,61 +341,48 @@ export function AppProvider({ children }) {
           updated_at: new Date().toISOString(),
         };
 
-        const { error: seedError } = await supabase
+        let { error: seedError } = await supabase
           .from("office_app_state")
           .insert(initialState);
 
+        if (seedError && /edit_requests|column/i.test(seedError.message || "")) {
+          const fallback = { ...initialState };
+          delete fallback.edit_requests;
+          ({ error: seedError } = await supabase
+            .from("office_app_state")
+            .insert(fallback));
+        }
+
         if (seedError) {
-          console.error(
-            "Could not seed Supabase state:",
-            seedError
-          );
+          console.error("Could not seed Supabase state:", seedError);
           setCloudStatus("error");
         } else {
           setCloudStatus("online");
         }
       } else {
         if (Array.isArray(data.employees)) {
-          setEmployees(
-            normalizeStoredEmployees(data.employees)
-          );
+          setEmployees(normalizeStoredEmployees(data.employees));
         }
-
-        if (
-          data.menu &&
-          typeof data.menu === "object"
-        ) {
+        if (data.menu && typeof data.menu === "object") {
           setMenu(data.menu);
         }
-
-        if (
-          data.orders &&
-          typeof data.orders === "object"
-        ) {
+        if (data.orders && typeof data.orders === "object") {
           setOrders(data.orders);
         }
-
-        if (
-          data.surplus_claims &&
-          typeof data.surplus_claims === "object"
-        ) {
+        if (data.surplus_claims && typeof data.surplus_claims === "object") {
           setSurplusClaims(data.surplus_claims);
         }
-
         if (Array.isArray(data.login_requests)) {
           setLoginRequests(data.login_requests);
         }
-
         if (Array.isArray(data.edit_requests)) {
           setEditRequests(data.edit_requests);
         }
-
         setCloudStatus("online");
       }
 
       setCloudReady(true);
     };
-
     void loadCloud();
 
     return () => {
@@ -793,69 +802,119 @@ export function AppProvider({ children }) {
    * from happening.
    */
   const submitOrder = useCallback(
-    async (employeeName, order) => {
+    async (employeeName, order, options = {}) => {
       const dateKey = todayDateKey();
-
       const nextOrder = {
         ...order,
         employeeName,
-        submittedAt:
-          new Date().toLocaleTimeString("en-GB"),
-        approved: false,
+        submittedAt: new Date().toLocaleTimeString("en-GB"),
+        approved: options.approved === true,
       };
 
-      /*
-       * ========================================================
-       * SUPABASE MODE
-       * ========================================================
-       */
-
-      if (
-        isSupabaseConfigured &&
-        cloudReady
-      ) {
-        const { data, error } =
-          await supabase.rpc(
-            "upsert_lunch_order",
-            {
-              p_date_key: dateKey,
-              p_employee_name: employeeName,
-              p_order: nextOrder,
-            }
-          );
-
-        if (error) {
-          console.error(
-            "Atomic order save failed:",
-            error
-          );
-
-          setCloudStatus("error");
-
+      if (isSupabaseConfigured) {
+        if (!cloudReady) {
+          setCloudStatus("connecting");
           return false;
         }
 
-        /*
-         * The RPC returns the complete latest
-         * orders object.
-         */
-        if (
-          data &&
-          typeof data === "object"
-        ) {
-          setOrders(data);
+        // Preferred path: atomic PostgreSQL RPC.
+        const { data, error } = await supabase.rpc(
+          "upsert_lunch_order",
+          {
+            p_date_key: dateKey,
+            p_employee_name: employeeName,
+            p_order: nextOrder,
+          }
+        );
+
+        if (!error && data && typeof data === "object") {
+          // Verify the RPC actually returned this order. If not, do not show
+          // a fake success; use the direct compatibility path below.
+          const saved = data?.[dateKey]?.[employeeName];
+          if (saved) {
+            setOrders(data);
+            setCloudStatus("online");
+            return true;
+          }
         }
 
-        setCloudStatus("online");
+        if (error) {
+          console.error("Atomic order save failed:", error);
+        } else {
+          console.error("Order RPC returned no saved order", data);
+        }
 
+        // Compatibility/recovery path. This keeps the existing prototype
+        // working even if the RPC was not created in the current Supabase
+        // project or the shared row needs to be initialized.
+        const { data: current, error: readError } = await supabase
+          .from("office_app_state")
+          .select("id, orders")
+          .eq("id", 1)
+          .maybeSingle();
+
+        if (readError) {
+          console.error("Could not read shared order state:", readError);
+          setCloudStatus("error");
+          return false;
+        }
+
+        const nextOrders = {
+          ...(current?.orders || {}),
+          [dateKey]: {
+            ...(current?.orders?.[dateKey] || {}),
+            [employeeName]: nextOrder,
+          },
+        };
+
+        let saveResult;
+        if (current) {
+          saveResult = await supabase
+            .from("office_app_state")
+            .update({
+              orders: nextOrders,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", 1);
+        } else {
+          saveResult = await supabase
+            .from("office_app_state")
+            .insert({
+              id: 1,
+              employees,
+              menu,
+              orders: nextOrders,
+              surplus_claims: surplusClaims,
+              login_requests: loginRequests,
+              edit_requests: editRequests,
+              updated_at: new Date().toISOString(),
+            });
+
+          if (saveResult.error && /edit_requests|column/i.test(saveResult.error.message || "")) {
+            saveResult = await supabase
+              .from("office_app_state")
+              .insert({
+                id: 1,
+                employees,
+                menu,
+                orders: nextOrders,
+                surplus_claims: surplusClaims,
+                login_requests: loginRequests,
+                updated_at: new Date().toISOString(),
+              });
+          }
+        }
+
+        if (saveResult.error) {
+          console.error("Direct order save failed:", saveResult.error);
+          setCloudStatus("error");
+          return false;
+        }
+
+        setOrders(nextOrders);
+        setCloudStatus("online");
         return true;
       }
-
-      /*
-       * ========================================================
-       * LOCAL / OFFLINE MODE
-       * ========================================================
-       */
 
       setOrders((previous) => ({
         ...previous,
@@ -864,12 +923,118 @@ export function AppProvider({ children }) {
           [employeeName]: nextOrder,
         },
       }));
-
       return true;
     },
-    [cloudReady]
+    [cloudReady, employees, menu, surplusClaims, loginRequests, editRequests]
   );
 
+  const approveAllToday = useCallback(async () => {
+    const dateKey = todayDateKey();
+
+    if (isSupabaseConfigured) {
+      if (!cloudReady) return false;
+
+      const { data, error } = await supabase.rpc(
+        "approve_all_orders",
+        { p_date_key: dateKey }
+      );
+
+      if (!error && data && typeof data === "object") {
+        setOrders(data);
+        setCloudStatus("online");
+        return true;
+      }
+
+      console.error("Approve-all RPC failed:", error);
+    }
+
+    setOrders((previous) => {
+      const todays = previous[dateKey] || {};
+      return {
+        ...previous,
+        [dateKey]: Object.fromEntries(
+          Object.entries(todays).map(([name, order]) => [
+            name,
+            { ...order, approved: true },
+          ])
+        ),
+      };
+    });
+    return true;
+  }, [cloudReady]);
+
+  const deleteTodayOrder = useCallback(async (employeeName) => {
+    const dateKey = todayDateKey();
+
+    if (isSupabaseConfigured && cloudReady) {
+      const { data, error } = await supabase.rpc(
+        "delete_lunch_order",
+        {
+          p_date_key: dateKey,
+          p_employee_name: employeeName,
+        }
+      );
+
+      if (!error && data && typeof data === "object") {
+        setOrders(data);
+        setCloudStatus("online");
+        return true;
+      }
+
+      console.error("Delete-order RPC failed:", error);
+      return false;
+    }
+
+    setOrders((previous) => {
+      const nextDay = { ...(previous[dateKey] || {}) };
+      delete nextDay[employeeName];
+      return { ...previous, [dateKey]: nextDay };
+    });
+    return true;
+  }, [cloudReady]);
+
+  const clearTodayData = useCallback(async () => {
+    const dateKey = todayDateKey();
+
+    if (isSupabaseConfigured && cloudReady) {
+      const { data, error } = await supabase.rpc(
+        "clear_today_orders",
+        { p_date_key: dateKey }
+      );
+
+      if (!error && data && typeof data === "object") {
+        setOrders(data);
+        setSurplusClaims((previous) => {
+          const next = { ...previous };
+          delete next[dateKey];
+          return next;
+        });
+        setEditRequests((previous) =>
+          previous.filter((request) => request.dateKey !== dateKey)
+        );
+        setCloudStatus("online");
+        return true;
+      }
+
+      console.error("Clear-today RPC failed:", error);
+      return false;
+    }
+
+    setOrders((previous) => {
+      const next = { ...previous };
+      delete next[dateKey];
+      return next;
+    });
+    setSurplusClaims((previous) => {
+      const next = { ...previous };
+      delete next[dateKey];
+      return next;
+    });
+    setEditRequests((previous) =>
+      previous.filter((request) => request.dateKey !== dateKey)
+    );
+    return true;
+  }, [cloudReady]);
   /* ==========================================================
    * EDIT REQUESTS
    * ========================================================== */
@@ -1043,159 +1208,6 @@ export function AppProvider({ children }) {
 
       return true;
     }, []);
-
-  /* ==========================================================
-   * DELETE TODAY'S ORDER
-   * ========================================================== */
-
-  const deleteTodayOrder = useCallback(
-    (employeeName) => {
-      const dateKey = todayDateKey();
-      const normalized =
-        normalizeName(employeeName);
-
-      if (!normalized) {
-        return false;
-      }
-
-      setOrders((previous) => {
-        const todayOrders = {
-          ...(previous[dateKey] || {}),
-        };
-
-        const matchingKey =
-          Object.keys(todayOrders).find(
-            (name) =>
-              normalizeName(name) ===
-              normalized
-          );
-
-        if (!matchingKey) {
-          return previous;
-        }
-
-        delete todayOrders[matchingKey];
-
-        const next = {
-          ...previous,
-          [dateKey]: todayOrders,
-        };
-
-        if (
-          Object.keys(todayOrders).length === 0
-        ) {
-          delete next[dateKey];
-        }
-
-        return next;
-      });
-
-      setSurplusClaims((previous) => {
-        const todayClaims = {
-          ...(previous[dateKey] || {}),
-        };
-
-        const matchingKey =
-          Object.keys(todayClaims).find(
-            (name) =>
-              normalizeName(name) ===
-              normalized
-          );
-
-        if (matchingKey) {
-          delete todayClaims[matchingKey];
-        }
-
-        const next = {
-          ...previous,
-          [dateKey]: todayClaims,
-        };
-
-        if (
-          Object.keys(todayClaims).length === 0
-        ) {
-          delete next[dateKey];
-        }
-
-        return next;
-      });
-
-      setEditRequests((previous) =>
-        previous.filter(
-          (request) =>
-            !(
-              request.dateKey === dateKey &&
-              normalizeName(
-                request.employeeName
-              ) === normalized
-            )
-        )
-      );
-
-      return true;
-    },
-    []
-  );
-
-  /* ==========================================================
-   * CLEAR TODAY DATA
-   * ========================================================== */
-
-  const clearTodayData = useCallback(() => {
-    const dateKey = todayDateKey();
-
-    setOrders((previous) => {
-      const next = { ...previous };
-      delete next[dateKey];
-      return next;
-    });
-
-    setSurplusClaims((previous) => {
-      const next = { ...previous };
-      delete next[dateKey];
-      return next;
-    });
-
-    setEditRequests((previous) =>
-      previous.filter(
-        (request) =>
-          request.dateKey !== dateKey
-      )
-    );
-
-    return true;
-  }, []);
-
-  /* ==========================================================
-   * APPROVE ALL TODAY
-   * ========================================================== */
-
-  const approveAllToday = useCallback(() => {
-    const dateKey = todayDateKey();
-
-    setOrders((previous) => {
-      const todays =
-        previous[dateKey] || {};
-
-      const approved =
-        Object.fromEntries(
-          Object.entries(todays).map(
-            ([name, order]) => [
-              name,
-              {
-                ...order,
-                approved: true,
-              },
-            ]
-          )
-        );
-
-      return {
-        ...previous,
-        [dateKey]: approved,
-      };
-    });
-  }, []);
 
   const todaysOrders =
     orders[todayDateKey()] || {};

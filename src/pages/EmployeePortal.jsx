@@ -55,6 +55,7 @@ export default function EmployeePortal({
     requestEdit,
     clearEditRequestsForEmployee,
     editRequests,
+    cloudStatus,
   } = useApp();
 
   const toast = useToast();
@@ -423,7 +424,7 @@ export default function EmployeePortal({
    * ==========================================================
    */
   const handleSubmit =
-    () => {
+    async () => {
       if (!dayMenu) {
         return;
       }
@@ -493,10 +494,19 @@ export default function EmployeePortal({
             currentUser.name
           );
 
-          submitOrder(
+          const saved = await submitOrder(
             currentUser.name,
-            nextOrder
+            nextOrder,
+            { approved: true }
           );
+
+          if (!saved) {
+            toast(
+              "Could not save your order. Please try again.",
+              "error"
+            );
+            return;
+          }
 
           setEditingOrder(false);
 
@@ -542,13 +552,22 @@ export default function EmployeePortal({
       /*
        * FIRST-TIME ORDER
        */
-      submitOrder(
+      const saved = await submitOrder(
         currentUser.name,
-        nextOrder
+        nextOrder,
+        { approved: Boolean(currentUser.isAdmin) }
       );
 
+      if (!saved) {
+        toast(
+          "Could not save your order. Please try again.",
+          "error"
+        );
+        return;
+      }
+
       toast(
-        "Your thali order is locked in for today",
+        "Order submitted successfully!",
         "success"
       );
     };
@@ -796,12 +815,21 @@ export default function EmployeePortal({
 
               <button
                 type="button"
-                onClick={() =>
-                  setSameBowl(
-                    (value) =>
-                      !value
-                  )
-                }
+                onClick={() => {
+                  setSameBowl((value) => {
+                    const next = !value;
+
+                    if (next) {
+                      setQty((previous) => ({
+                        ...previous,
+                        bowl1: 1,
+                        bowl2: 1,
+                      }));
+                    }
+
+                    return next;
+                  });
+                }}
                 className={`relative flex-none h-8 w-14 rounded-full p-1 overflow-hidden transition-colors duration-200 ${
                   sameBowl
                     ? "bg-emerald-500"
@@ -966,6 +994,18 @@ export default function EmployeePortal({
               }
             />
 
+            {cloudStatus === "connecting" && (
+              <div className="mb-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-center text-sm text-amber-700 dark:text-amber-300">
+                Connecting to LunchBox… please wait before submitting your order.
+              </div>
+            )}
+
+            {cloudStatus === "error" && (
+              <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-center text-sm text-red-700 dark:text-red-300">
+                LunchBox server connection failed. Please refresh and try again.
+              </div>
+            )}
+
             <Cart
               employeeName={
                 currentUser.name
@@ -977,7 +1017,9 @@ export default function EmployeePortal({
                 handleSubmit
               }
               disabled={
-                !dayMenu
+                !dayMenu ||
+                cloudStatus === "connecting" ||
+                cloudStatus === "error"
               }
             />
           </>

@@ -30,7 +30,7 @@ export default function Cart({
     0
   );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (
       disabled ||
       total === 0 ||
@@ -40,7 +40,11 @@ export default function Cart({
       return;
     }
 
-    onSubmit();
+    const result = await onSubmit();
+
+    if (result === false) {
+      return;
+    }
 
     setJustSubmitted(true);
     setOpen(false);
