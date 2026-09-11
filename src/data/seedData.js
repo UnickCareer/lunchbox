@@ -97,6 +97,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Mohit",
     role: "owner",
+    userType: "employee",
     isAdmin: true,
     isOwner: true,
     adminPin: "0990",
@@ -105,6 +106,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Naveen HR",
     role: "admin",
+    userType: "employee",
     isAdmin: true,
     isOwner: false,
     adminPin: "0880",
@@ -113,6 +115,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Tanish",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -120,6 +123,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Sunny",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -127,6 +131,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Ankush",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -134,6 +139,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Shiv",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -141,6 +147,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Aman",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -148,6 +155,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Naveen",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -155,6 +163,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Akash",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -162,6 +171,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Uncle",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -169,6 +179,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Rajeev",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -176,6 +187,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Pankaj Saini",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },
@@ -183,6 +195,7 @@ export const DEFAULT_EMPLOYEES = [
   {
     name: "Sumit",
     role: "employee",
+    userType: "employee",
     isAdmin: false,
     isOwner: false,
   },

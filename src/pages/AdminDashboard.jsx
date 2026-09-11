@@ -28,6 +28,8 @@ import ThemeToggle from "../components/ThemeToggle.jsx";
 
 import TodaySummary from "../components/admin/TodaySummary.jsx";
 
+import BookingDeadlineSettings from "../components/admin/BookingDeadlineSettings.jsx";
+
 import EmployeeManagement from "../components/admin/EmployeeManagement.jsx";
 
 import MenuSettings from "../components/admin/MenuSettings.jsx";
@@ -921,6 +923,12 @@ export default function AdminDashboard() {
                 Send for Order
               </button>
             </div>
+          </div>
+        )}
+
+        {tab === "summary" && (
+          <div className="mb-6">
+            <BookingDeadlineSettings />
           </div>
         )}
 

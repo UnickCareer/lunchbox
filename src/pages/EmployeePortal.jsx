@@ -2,6 +2,7 @@ import React, {
   useMemo,
   useState,
   useEffect,
+  useRef,
 } from "react";
 
 import { motion } from "framer-motion";
@@ -17,6 +18,7 @@ import {
   ArrowLeft,
   Repeat,
   CalendarDays,
+  Clock3,
 } from "lucide-react";
 
 import {
@@ -56,6 +58,7 @@ export default function EmployeePortal({
     clearEditRequestsForEmployee,
     editRequests,
     cloudStatus,
+    getBookingDeadline,
   } = useApp();
 
   const toast = useToast();
@@ -86,10 +89,85 @@ export default function EmployeePortal({
   const safeUserName =
     currentUser?.name || "";
 
+  const isUnlimitedUser =
+    Boolean(currentUser?.isAdmin) ||
+    currentUser?.userType === "guest" ||
+    currentUser?.role === "guest";
+
+  const deadlineTime = getBookingDeadline();
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (isUnlimitedUser) return undefined;
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, [isUnlimitedUser]);
+
+  const getDeadlineDate = () => {
+    const [hours, minutes] = String(deadlineTime || "11:30")
+      .split(":")
+      .map(Number);
+    const deadline = new Date();
+    deadline.setHours(hours, minutes, 0, 0);
+    return deadline;
+  };
+
+  const deadlineDate = getDeadlineDate();
+  const remainingMs = Math.max(0, deadlineDate.getTime() - now.getTime());
+  const isBookingClosed = !isUnlimitedUser && remainingMs <= 0;
+  const remainingSeconds = Math.floor(remainingMs / 1000);
+  const countdownHours = String(Math.floor(remainingSeconds / 3600)).padStart(2, "0");
+  const countdownMinutes = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(2, "0");
+  const countdownSeconds = String(remainingSeconds % 60).padStart(2, "0");
+  const tenMinuteWarning =
+    !isUnlimitedUser &&
+    remainingMs > 0 &&
+    remainingMs <= 10 * 60 * 1000;
+
+  // Use the live countdown to calculate the warning text as well.
+  // ceil() means 3:21:00 -> 10 minutes, 3:22:00 -> 9 minutes,
+  // ... 3:30:00 -> 1 minute, and at the deadline the warning disappears.
+  const warningMinutes = tenMinuteWarning
+    ? Math.min(10, Math.max(1, Math.ceil(remainingMs / 60000)))
+    : 0;
+
+  const lastWarningMinuteRef = useRef(null);
+
+  useEffect(() => {
+    if (isUnlimitedUser || warningMinutes <= 0) {
+      lastWarningMinuteRef.current = null;
+      return;
+    }
+
+    // Notify once whenever the displayed remaining-minute value changes.
+    if (lastWarningMinuteRef.current !== warningMinutes) {
+      lastWarningMinuteRef.current = warningMinutes;
+      toast(
+        `Only ${warningMinutes} minute${warningMinutes === 1 ? "" : "s"} left to book your food. Hurry up and place your order!`,
+        "info"
+      );
+    }
+  }, [isUnlimitedUser, warningMinutes, toast]);
+
+  const formatDeadline = (value) => {
+    const [hours, minutes] = String(value || "11:30").split(":").map(Number);
+    const d = new Date();
+    d.setHours(hours, minutes, 0, 0);
+    return d.toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
   const alreadySubmitted =
     safeUserName
       ? todaysOrders[safeUserName]
       : null;
+
+  // A late employee attempt is visible to Admin/HR for approval,
+  // but it must never look like a successful employee booking.
+  const lateOrderPendingApproval =
+    Boolean(alreadySubmitted?.outOfTime && !alreadySubmitted?.approved);
 
   /*
    * Admin/Owner never gets an employee edit request.
@@ -473,6 +551,25 @@ export default function EmployeePortal({
         },
       };
 
+      if (isBookingClosed) {
+        // Keep a non-booked late attempt so HR/Admin can see and approve it.
+        const savedLate = await submitOrder(
+          currentUser.name,
+          nextOrder,
+          { approved: false, outOfTime: true }
+        );
+
+        toast(
+          "Time is up to book your order. Please connect to HR.",
+          "error"
+        );
+
+        if (!savedLate) {
+          console.error("Late order attempt could not be recorded for HR.");
+        }
+        return;
+      }
+
       /*
        * EDITING AN EXISTING ORDER
        */
@@ -675,6 +772,42 @@ export default function EmployeePortal({
               ? `${dayMenu.dry} & ${dayMenu.gravy}`
               : "Office closed today"}
           </h1>
+
+          {!isUnlimitedUser && dayMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`mt-4 inline-flex flex-col sm:flex-row items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold ${
+                isBookingClosed
+                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                  : tenMinuteWarning
+                    ? "bg-amber-400/15 text-amber-600 dark:text-amber-400"
+                    : "glass text-ink-700 dark:text-cream-50/80"
+              }`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Clock3 size={16} />
+                {isBookingClosed
+                  ? `Booking closed at ${formatDeadline(deadlineTime)}`
+                  : `Book by ${formatDeadline(deadlineTime)}`}
+              </span>
+              <span className="font-mono tracking-wider">
+                {countdownHours}:{countdownMinutes}:{countdownSeconds}
+              </span>
+            </motion.div>
+          )}
+
+          {tenMinuteWarning && !isBookingClosed && (
+            <p className="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              Only {warningMinutes} minute{warningMinutes === 1 ? "" : "s"} left to book your food. Hurry up and place your order!
+            </p>
+          )}
+
+          {isUnlimitedUser && dayMenu && (
+            <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+              No booking time limit for Admin/HR and Guest accounts.
+            </p>
+          )}
         </motion.div>
 
         {!dayMenu ? (
@@ -693,7 +826,7 @@ export default function EmployeePortal({
             day off!
           </motion.div>
 
-        ) : alreadySubmitted &&
+        ) : lateOrderPendingApproval &&
           !editingOrder ? (
 
           <motion.div
@@ -708,8 +841,7 @@ export default function EmployeePortal({
             className="glass-strong rounded-3xl p-8 text-center"
           >
             <p className="font-display text-xl font-semibold mb-1">
-              Order Submitted Successfully
-              ✅
+              Booking Time Expired
             </p>
 
             <p className="text-sm text-ink-500 dark:text-cream-50/60 mb-5">
@@ -720,30 +852,46 @@ export default function EmployeePortal({
               .
             </p>
 
+            <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-4">
+              <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                Time is up to book your order. Please connect to HR.
+              </p>
+              <p className="mt-1 text-xs text-ink-500 dark:text-cream-50/60">
+                HR/Admin can review this late request from the dashboard.
+              </p>
+            </div>
+          </motion.div>
+
+        ) : alreadySubmitted &&
+          !editingOrder ? (
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-strong rounded-3xl p-8 text-center"
+          >
+            <p className="font-display text-xl font-semibold mb-1">
+              Order Submitted Successfully ✅
+            </p>
+
+            <p className="text-sm text-ink-500 dark:text-cream-50/60 mb-5">
+              Submitted at {alreadySubmitted.submittedAt}.
+            </p>
+
             {pendingEditRequest ? (
-
               <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4">
-
                 <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
                   Edit Request Pending ⏳
                 </p>
-
                 <p className="mt-1 text-xs text-ink-500 dark:text-cream-50/60">
                   Admin needs to approve or reject your requested change.
                 </p>
-
               </div>
-
             ) : (
-
               <>
                 <button
                   type="button"
-                  onClick={() =>
-                    setEditingOrder(
-                      true
-                    )
-                  }
+                  onClick={() => setEditingOrder(true)}
                   className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-emerald-950 shadow-glow hover:brightness-105 transition"
                 >
                   Edit Order
@@ -755,7 +903,6 @@ export default function EmployeePortal({
                     : "Changes are sent to Admin for approval."}
                 </p>
               </>
-
             )}
           </motion.div>
 

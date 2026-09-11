@@ -28,6 +28,7 @@ const LS_KEYS = {
   editRequests: "op_edit_requests",
   currentUser: "op_current_user",
   currentPage: "op_current_page",
+  bookingDeadlines: "op_booking_deadlines",
 };
 
 function loadLS(key, fallback) {
@@ -48,7 +49,11 @@ function saveLS(key, value) {
 }
 
 export function todayDateKey() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function todayLabel() {
@@ -78,6 +83,7 @@ function normalizeEmployee(employee) {
     isAdmin: Boolean(employee?.isAdmin),
     isOwner: Boolean(employee?.isOwner),
     adminPin: employee?.adminPin || "",
+    userType: employee?.userType || (employee?.role === "guest" ? "guest" : "employee"),
     temporaryUntil: employee?.temporaryUntil || null,
   };
 }
@@ -172,6 +178,12 @@ export function AppProvider({ children }) {
 
   const [currentPage, setCurrentPage] = useState(() =>
     loadLS(LS_KEYS.currentPage, "login")
+  );
+
+  // Per-day employee booking deadlines. The normal daily deadline is 11:30 AM.
+  // Admin/Owner can temporarily relax today's deadline for special occasions.
+  const [bookingDeadlines, setBookingDeadlines] = useState(() =>
+    loadLS(LS_KEYS.bookingDeadlines, {})
   );
 
   const [cloudReady, setCloudReady] = useState(!isSupabaseConfigured);
@@ -269,6 +281,7 @@ export function AppProvider({ children }) {
         surplusClaims,
         loginRequests,
         editRequests,
+        bookingDeadlines,
       });
     }, 150);
 
@@ -284,6 +297,7 @@ export function AppProvider({ children }) {
     surplusClaims,
     loginRequests,
     editRequests,
+    bookingDeadlines,
     cloudReady,
     persistCloud,
   ]);
@@ -299,7 +313,7 @@ export function AppProvider({ children }) {
       let { data, error } = await supabase
         .from("office_app_state")
         .select(
-          "id, employees, menu, orders, surplus_claims, login_requests, edit_requests, updated_at"
+          "id, employees, menu, orders, surplus_claims, login_requests, edit_requests, booking_deadlines, updated_at"
         )
         .eq("id", 1)
         .maybeSingle();
@@ -310,7 +324,7 @@ export function AppProvider({ children }) {
         const fallback = await supabase
           .from("office_app_state")
           .select(
-            "id, employees, menu, orders, surplus_claims, login_requests, updated_at"
+            "id, employees, menu, orders, surplus_claims, login_requests, booking_deadlines, updated_at"
           )
           .eq("id", 1)
           .maybeSingle();
@@ -338,6 +352,7 @@ export function AppProvider({ children }) {
           surplus_claims: surplusClaims,
           login_requests: loginRequests,
           edit_requests: editRequests,
+          booking_deadlines: bookingDeadlines,
           updated_at: new Date().toISOString(),
         };
 
@@ -377,6 +392,9 @@ export function AppProvider({ children }) {
         }
         if (Array.isArray(data.edit_requests)) {
           setEditRequests(data.edit_requests);
+        }
+        if (data.booking_deadlines && typeof data.booking_deadlines === "object") {
+          setBookingDeadlines(data.booking_deadlines);
         }
         setCloudStatus("online");
       }
@@ -444,6 +462,9 @@ export function AppProvider({ children }) {
 
           if (Array.isArray(data.edit_requests)) {
             setEditRequests(data.edit_requests);
+          }
+          if (data.booking_deadlines && typeof data.booking_deadlines === "object") {
+            setBookingDeadlines(data.booking_deadlines);
           }
 
           setCloudStatus("online");
@@ -539,6 +560,7 @@ export function AppProvider({ children }) {
         role: match.role,
         isAdmin: Boolean(match.isAdmin),
         isOwner: Boolean(match.isOwner),
+        userType: match.userType || (match.role === "guest" ? "guest" : "employee"),
       });
 
       setCurrentPage(
@@ -568,49 +590,49 @@ export function AppProvider({ children }) {
    * ========================================================== */
 
   const addEmployee = useCallback(
-    (name, isAdmin = false, adminPin = "") => {
+    (name, isAdmin = false, adminPin = "", userType = "employee") => {
       const cleanName = String(name || "")
         .trim()
-        .replace(/\s+/g, " ");
+        .replace(/\\s+/g, " ");
 
-      if (!cleanName) {
-        return false;
-      }
+      if (!cleanName) return false;
 
       let added = false;
+      const type = userType === "guest" ? "guest" : "employee";
 
       setEmployees((previous) => {
         const exists = previous.some(
-          (employee) =>
-            normalizeName(employee.name) ===
-            normalizeName(cleanName)
+          (employee) => normalizeName(employee.name) === normalizeName(cleanName)
         );
-
-        if (exists) {
-          return previous;
-        }
-
+        if (exists) return previous;
         added = true;
-
         return [
           ...previous,
           {
             name: cleanName,
-            role: isAdmin ? "admin" : "employee",
+            role: isAdmin ? "admin" : type,
             isAdmin: Boolean(isAdmin),
             isOwner: false,
-            adminPin: isAdmin
-              ? String(adminPin || "")
-              : "",
+            adminPin: isAdmin ? String(adminPin || "") : "",
+            userType: type,
             temporaryUntil: null,
           },
         ];
       });
-
       return added;
     },
     []
   );
+
+  const setEmployeeType = useCallback((name, userType) => {
+    const normalized = normalizeName(name);
+    if (normalized === "mohit" || !["employee", "guest"].includes(userType)) return false;
+    setEmployees((previous) => previous.map((employee) => {
+      if (normalizeName(employee.name) !== normalized || employee.isAdmin) return employee;
+      return { ...employee, userType, role: userType };
+    }));
+    return true;
+  }, []);
 
   const removeEmployee = useCallback((name) => {
     const normalized = normalizeName(name);
@@ -651,7 +673,8 @@ export function AppProvider({ children }) {
           isAdmin: becomingAdmin,
           role: becomingAdmin
             ? "admin"
-            : "employee",
+            : (employee.userType || "employee"),
+          userType: employee.userType || "employee",
           adminPin: becomingAdmin
             ? employee.adminPin || ""
             : "",
@@ -760,6 +783,80 @@ export function AppProvider({ children }) {
   );
 
   /* ==========================================================
+   * BOOKING DEADLINE
+   * ========================================================== */
+
+  const DEFAULT_BOOKING_DEADLINE = "11:30";
+
+  const getBookingDeadline = useCallback(
+    (dateKey = todayDateKey()) => {
+      const value = bookingDeadlines?.[dateKey];
+      return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""))
+        ? value
+        : DEFAULT_BOOKING_DEADLINE;
+    },
+    [bookingDeadlines]
+  );
+
+  const setBookingDeadline = useCallback(
+    async (time, dateKey = todayDateKey()) => {
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(time || ""))) {
+        return false;
+      }
+
+      const next = {
+        ...bookingDeadlines,
+        [dateKey]: String(time),
+      };
+      setBookingDeadlines(next);
+      saveLS(LS_KEYS.bookingDeadlines, next);
+
+      if (isSupabaseConfigured && cloudReady) {
+        const { error } = await supabase.rpc("set_booking_deadline", {
+          p_date_key: dateKey,
+          p_time: String(time),
+        });
+
+        if (error) {
+          console.error("Could not save booking deadline:", error);
+          setCloudStatus("error");
+          return false;
+        }
+
+        setCloudStatus("online");
+      }
+
+      return true;
+    },
+    [bookingDeadlines, cloudReady]
+  );
+
+  const resetBookingDeadline = useCallback(
+    async (dateKey = todayDateKey()) => {
+      const next = { ...bookingDeadlines };
+      delete next[dateKey];
+      setBookingDeadlines(next);
+      saveLS(LS_KEYS.bookingDeadlines, next);
+
+      if (isSupabaseConfigured && cloudReady) {
+        const { error } = await supabase.rpc("reset_booking_deadline", {
+          p_date_key: dateKey,
+        });
+
+        if (error) {
+          console.error("Could not reset booking deadline:", error);
+          setCloudStatus("error");
+          return false;
+        }
+
+        setCloudStatus("online");
+      }
+      return true;
+    },
+    [bookingDeadlines, cloudReady]
+  );
+
+  /* ==========================================================
    * MENU
    * ========================================================== */
 
@@ -809,6 +906,7 @@ export function AppProvider({ children }) {
         employeeName,
         submittedAt: new Date().toLocaleTimeString("en-GB"),
         approved: options.approved === true,
+        outOfTime: options.outOfTime === true,
       };
 
       if (isSupabaseConfigured) {
@@ -955,11 +1053,71 @@ export function AppProvider({ children }) {
         [dateKey]: Object.fromEntries(
           Object.entries(todays).map(([name, order]) => [
             name,
-            { ...order, approved: true },
+            { ...order, approved: true, outOfTime: false },
           ])
         ),
       };
     });
+    return true;
+  }, [cloudReady]);
+
+  const approveOutOfTimeOrder = useCallback(async (employeeName) => {
+    const dateKey = todayDateKey();
+
+    const updateLocal = (previous) => {
+      const todays = previous[dateKey] || {};
+      const order = todays[employeeName];
+      if (!order) return previous;
+      return {
+        ...previous,
+        [dateKey]: {
+          ...todays,
+          [employeeName]: {
+            ...order,
+            approved: true,
+            outOfTime: false,
+            approvedAt: new Date().toISOString(),
+          },
+        },
+      };
+    };
+
+    if (isSupabaseConfigured && cloudReady) {
+      const current = await supabase
+        .from("office_app_state")
+        .select("orders")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (current.error) {
+        console.error("Could not read orders for late approval:", current.error);
+        return false;
+      }
+
+      const nextOrders = updateLocal({ [dateKey]: current.data?.orders?.[dateKey] || {} })[dateKey];
+      const { error } = await supabase
+        .from("office_app_state")
+        .update({
+          orders: {
+            ...(current.data?.orders || {}),
+            [dateKey]: nextOrders,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", 1);
+
+      if (error) {
+        console.error("Could not approve out-of-time order:", error);
+        setCloudStatus("error");
+        return false;
+      }
+
+      setOrders((previous) => updateLocal(previous));
+      setCloudStatus("online");
+      return true;
+    }
+
+    setOrders((previous) => updateLocal(previous));
     return true;
   }, [cloudReady]);
 
@@ -1596,6 +1754,10 @@ export function AppProvider({ children }) {
     surplusAvailability,
     loginRequests,
     editRequests,
+    bookingDeadlines,
+    getBookingDeadline,
+    setBookingDeadline,
+    resetBookingDeadline,
 
     toggleTheme,
     login,
@@ -1605,6 +1767,7 @@ export function AppProvider({ children }) {
     addEmployee,
     removeEmployee,
     toggleAdmin,
+    setEmployeeType,
     setAdminPin,
 
     approveAccessRequest,
@@ -1623,6 +1786,7 @@ export function AppProvider({ children }) {
     clearEditRequestsForEmployee,
 
     approveAllToday,
+    approveOutOfTimeOrder,
     deleteTodayOrder,
     clearTodayData,
 

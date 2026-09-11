@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   CheckCheck,
@@ -34,18 +34,21 @@ export default function TodaySummary() {
     approveAllToday,
     deleteTodayOrder,
     clearTodayData,
+    approveOutOfTimeOrder,
   } = useApp();
 
   const toast = useToast();
   const [approving, setApproving] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [openLate, setOpenLate] = useState(null);
 
   const weekday = todayWeekday();
   const dayMenu = menu[weekday];
   const orderList = Object.values(todaysOrders || {});
 
+  const approvedCount = orderList.filter((order) => order.approved).length;
   const allApproved =
-    orderList.length > 0 && orderList.every((order) => order.approved);
+    orderList.length > 0 && approvedCount === orderList.length;
 
   const handleApprove = () => {
     setApproving(true);
@@ -120,7 +123,10 @@ export default function TodaySummary() {
           </h3>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-2 text-sm font-bold">
+            Approved: {approvedCount}
+          </span>
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={handleApprove}
@@ -155,7 +161,7 @@ export default function TodaySummary() {
             ) : (
               <Trash2 size={16} />
             )}
-            Cancel all today
+            Cancel all
           </motion.button>
         </div>
       </div>
@@ -212,16 +218,61 @@ export default function TodaySummary() {
                       </td>
                     ))}
 
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          order.approved
-                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                            : "bg-amber-400/15 text-amber-600 dark:text-amber-400"
-                        }`}
-                      >
-                        {order.approved ? "Approved" : "Pending"}
-                      </span>
+                    <td className="px-4 py-3 relative">
+                      {order.outOfTime && !order.approved ? (
+                        <div className="relative inline-block">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenLate(
+                                openLate === order.employeeName
+                                  ? null
+                                  : order.employeeName
+                              )
+                            }
+                            className="rounded-full px-2.5 py-1 text-xs font-semibold bg-red-500/15 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition"
+                          >
+                            Out of time
+                          </button>
+
+                          <AnimatePresence>
+                            {openLate === order.employeeName && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                className="absolute left-0 top-full z-20 mt-2 w-32 rounded-xl glass-strong p-1.5 shadow-xl border border-ink-900/10 dark:border-white/10"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const ok = await approveOutOfTimeOrder(order.employeeName);
+                                    if (ok) {
+                                      setOpenLate(null);
+                                      toast(`${order.employeeName}'s late order approved`, "success");
+                                    } else {
+                                      toast("Could not approve this order", "error");
+                                    }
+                                  }}
+                                  className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition"
+                                >
+                                  Approved
+                                </button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ) : (
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            order.approved
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : "bg-amber-400/15 text-amber-600 dark:text-amber-400"
+                          }`}
+                        >
+                          {order.approved ? "Approved" : "Pending"}
+                        </span>
+                      )}
                     </td>
 
                     <td className="px-4 py-3 text-right">
