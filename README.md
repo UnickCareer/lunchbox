@@ -4,825 +4,974 @@
 
 ### A smarter, simpler way to manage daily office lunch.
 
-A modern web application for employees to book their daily lunch, administrators to manage orders, and office teams to coordinate lunch operations efficiently.
+A modern web application designed to simplify daily lunch bookings, manage employee orders, and streamline office lunch coordination.
 
 **Built for Sparsh CCTV, Panipat**
 
-![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite-Frontend-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-Backend-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-Deployment-000000?style=for-the-badge&logo=vercel&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
-**Easy Booking · Flexible Deadlines · Real-Time Data · Admin Controls**
+**Simple Booking · Flexible Deadlines · Order Management · WhatsApp Integration**
 
 </div>
 
-# 🍱 LunchBox Panipat — Office Lunch Ordering System
+---
 
-A modern, responsive **office lunch ordering web application** built for **Sparsh CCTV, Panipat**.
+## 📑 Table of Contents
 
-Employees can log in, customize their daily thali, use available surplus food, submit their lunch order, and request order edits. Admin/Owner users can manage employees, menus, approvals, access requests, and send the final approved lunch summary to the food owner through WhatsApp.
+- [🌟 About the Project](#-about-the-project)
+- [🎯 Project Objectives](#-project-objectives)
+- [✨ Features](#-features)
+- [⏰ Booking Deadline Management](#-booking-deadline-management)
+- [👥 User Roles](#-user-roles)
+- [🍽️ Employee Experience](#-employee-experience)
+- [🛡️ Admin Dashboard](#-admin-dashboard)
+- [📱 WhatsApp Integration](#-whatsapp-integration)
+- [🎨 UI and User Experience](#-ui-and-user-experience)
+- [🧰 Technology Stack](#-technology-stack)
+- [🏗️ Application Architecture](#-application-architecture)
+- [🔄 Application Workflow](#-application-workflow)
+- [📁 Project Structure](#-project-structure)
+- [🚀 Getting Started](#-getting-started)
+- [🔐 Environment Variables](#-environment-variables)
+- [🗄️ Supabase Configuration](#️-supabase-configuration)
+- [🌐 Deployment](#-deployment)
+- [🔀 Git and GitHub Workflow](#-git-and-github-workflow)
+- [🧪 Testing Checklist](#-testing-checklist)
+- [🔒 Security Considerations](#-security-considerations)
+- [💡 Future Improvements](#-future-improvements)
+- [👨‍💻 Project Purpose](#-project-purpose)
 
 ---
 
-## ✨ Project Highlights
+## 🌟 About the Project
 
-- 👨‍💼 Employee lunch ordering portal
-- 🛡️ Admin / HR dashboard
-- 👑 Owner access
-- 🍛 Daily thali menu
-- ➕ Quantity selection with normal food limits
-- 🔄 Same vegetable in both bowls
-- ♻️ Shared surplus-food system
-- 📝 Employee order-edit requests
-- ✅ Admin approval / rejection workflow
-- 📱 Responsive mobile-friendly UI
-- 🌙 Light / dark mode
-- ✨ Framer Motion animations
-- 📊 Today's lunch summary
-- 📲 WhatsApp order sending
-- 🔒 Anonymous P1, P2, P3... formatting in WhatsApp
-- 🗃️ Supabase shared database and synchronization
-- 🚀 Vercel deployment
-- 🌐 QR-code based access for office phones
-- 🔖 Custom emerald + golden lunch/thali favicon
+**LunchBox** is a web-based office lunch ordering application built to simplify the daily process of collecting, managing, and coordinating employee lunch orders.
 
----
+Traditional lunch management often involves manually collecting orders through messages, maintaining spreadsheets, and repeatedly confirming employee preferences. LunchBox brings this process into a centralized web application.
 
-## 🧭 Project Flow
+Employees can book their lunch, administrators can manage daily orders, and the application provides a convenient way to review consolidated order information.
 
-**Employee / Admin opens website**
+The application combines a modern frontend, cloud-backed data storage, administrative controls, and WhatsApp integration to support everyday office operations.
 
-↓
+### 🎯 The Problem
 
-**Login**
+Manual lunch management can create several challenges:
 
-↓
+- Repeated messages and unnecessary communication.
+- Incorrect or missing lunch orders.
+- Difficulty tracking employee bookings.
+- Confusion when employees need to change their orders.
+- Last-minute booking requests.
+- Time-consuming preparation of daily order summaries.
 
-**Employee**
-→ View today's menu  
-→ Select food quantities  
-→ Use surplus food if available  
-→ Submit lunch order  
-→ Edit submitted order if required  
+### 💡 The Solution
 
-**OR**
+LunchBox provides a centralized platform where employees can book lunch and authorized administrators can manage the process.
 
-**Admin / Owner**
-→ Open Admin Dashboard  
-→ View today's orders  
-→ Manage employees  
-→ Manage access requests  
-→ Manage menu  
-→ Approve orders  
-→ Book own lunch  
-→ Send approved order to food owner on WhatsApp
-
-↓
-
-**Supabase**
-
-Stores and synchronizes shared application data.
-
-↓
-
-**Vercel**
-
-Hosts the production application.
+The application aims to make daily lunch coordination more organized, efficient, and convenient.
 
 ---
 
-# 🛠️ Tech Stack
+## 🎯 Project Objectives
+
+The primary objectives of LunchBox are:
+
+- Simplify daily office lunch booking.
+- Centralize employee lunch orders.
+- Provide a configurable booking deadline.
+- Allow administrators to manage booking availability.
+- Support an organized order-edit approval workflow.
+- Provide consolidated order information.
+- Integrate WhatsApp into the order-sharing process.
+- Improve the employee and administrator experience.
+- Provide a responsive interface for different screen sizes.
+- Reduce repetitive manual work.
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| 👤 Employee Login | Provides the employee login flow supported by the application. |
+| 🍱 Lunch Booking | Allows employees to select and book their lunch. |
+| ⏰ Flexible Booking Deadline | Supports configurable daily booking cut-off times. |
+| 🕒 Preset Deadline Options | Provides predefined deadline choices for administrators. |
+| ⚙️ Custom Deadline | Supports a custom booking time with AM/PM selection. |
+| 🛡️ Admin Dashboard | Provides administrative controls for lunch management. |
+| 📋 Order Management | Displays and manages employee lunch bookings. |
+| ✏️ Edit Requests | Supports requests to modify existing orders. |
+| ✅ Edit Approval | Allows administrators to review and approve supported order changes. |
+| 🍽️ Menu Management | Supports management of available lunch options. |
+| 🥡 Surplus Management | Includes a workflow for surplus food management. |
+| 📱 WhatsApp Integration | Supports preparing and sharing lunch order information. |
+| 📊 Order Summary | Provides a consolidated view of lunch bookings. |
+| 🎨 Modern Interface | Uses modern frontend styling and reusable components. |
+| ✨ UI Animations | Uses Framer Motion where animations are implemented. |
+| 📱 Responsive Design | Designed for desktop and mobile use. |
+| ☁️ Cloud Backend | Uses Supabase for configured backend services. |
+| 🚀 Deployment | Supports frontend hosting through Vercel. |
+
+---
+
+## ⏰ Booking Deadline Management
+
+The **Booking Deadline** feature allows authorized administrators to control when employees must finish booking their lunch.
+
+The default booking deadline is **11:30 AM**.
+
+Administrators can select a predefined time or configure a custom deadline according to office requirements.
+
+### 🕒 Available Booking Deadlines
+
+| Option | Deadline |
+|---|---|
+| Default | **11:30 AM** |
+| Preset 1 | 12:00 PM |
+| Preset 2 | 12:30 PM |
+| Preset 3 | 1:00 PM |
+| Preset 4 | 1:30 PM |
+| Preset 5 | 2:00 PM |
+| Custom Time | Administrator-defined time with AM/PM selection |
+
+### ⚙️ How It Works
+
+1. The default booking deadline is set to **11:30 AM**.
+2. An authorized administrator opens the relevant booking or settings interface.
+3. The administrator selects one of the predefined deadline options or chooses the custom-time option.
+4. For a custom deadline, the administrator specifies the desired time, including AM or PM.
+5. The application uses the configured deadline to determine booking availability.
+6. Employees can submit bookings while booking is open and other booking requirements are satisfied.
+7. Once the configured deadline has passed, new bookings should be prevented according to the application's implemented rules.
+
+### 📌 Example
+
+Suppose the office wants employees to finish booking lunch before 12:30 PM.
+
+The administrator selects:
+
+**Booking Deadline → 12:30 PM**
+
+The application then uses the configured deadline according to its booking rules.
+
+If the office later requires a different cut-off time, the administrator can select another preset or configure a custom time.
+
+### 🌟 Benefits
+
+- Provides flexibility for different office requirements.
+- Reduces confusion about the daily booking cut-off.
+- Makes deadline management easier for administrators.
+- Supports predefined and custom time options.
+- Helps organize daily lunch operations.
+
+### 🧪 Booking Deadline Scenarios
+
+| Scenario | Expected Behavior |
+|---|---|
+| No custom deadline is configured | The default deadline is 11:30 AM. |
+| Administrator selects 12:00 PM | The configured deadline becomes 12:00 PM. |
+| Administrator selects 12:30 PM | The configured deadline becomes 12:30 PM. |
+| Administrator selects 1:00 PM | The configured deadline becomes 1:00 PM. |
+| Administrator selects 1:30 PM | The configured deadline becomes 1:30 PM. |
+| Administrator selects 2:00 PM | The configured deadline becomes 2:00 PM. |
+| Administrator selects a custom AM time | The selected AM time is interpreted correctly. |
+| Administrator selects a custom PM time | The selected PM time is interpreted correctly. |
+| Employee books before the deadline | Booking is allowed when all other conditions are satisfied. |
+| Employee tries to book after the deadline | Booking is rejected when the deadline restriction applies. |
+| Application is refreshed | The configured deadline remains consistent if persistence is implemented. |
+| Administrator changes the deadline | The application follows the updated deadline according to its rules. |
+
+> **Important:** These are the documented requirements for the feature. The actual enforcement, persistence, and time-zone behavior should be verified against the application implementation.
+
+---
+
+## 👥 User Roles
+
+LunchBox supports employee and administrative workflows.
+
+### 👤 Employee
+
+Employees can use the application to:
+
+- Access the employee interface.
+- View available lunch options.
+- Book lunch for the relevant date.
+- Review their booking information.
+- Submit supported order-edit requests.
+- Participate in the surplus food workflow where available.
+
+### 🛡️ Admin / Owner
+
+Authorized administrators can use the application to:
+
+- Access the administrative dashboard.
+- Review employee lunch bookings.
+- Manage available lunch options.
+- Configure booking deadlines.
+- Review order-edit requests.
+- Manage supported surplus food operations.
+- View consolidated order information.
+- Prepare lunch order summaries for communication.
+
+Available permissions depend on the application's implemented authorization rules.
+
+---
+
+## 🍽️ Employee Experience
+
+The employee interface is designed to make daily lunch booking straightforward.
+
+### Typical Employee Journey
+
+1. Open the LunchBox application.
+2. Enter the required employee login information.
+3. View the available lunch options.
+4. Select the desired lunch.
+5. Submit the booking while booking is open.
+6. Review the booking information.
+7. Submit an edit request if changes are supported and needed.
+
+### User Experience Goals
+
+- Keep the booking process simple.
+- Make important information easy to find.
+- Provide clear feedback after user actions.
+- Reduce unnecessary navigation.
+- Maintain usability across desktop and mobile screens.
+
+---
+
+## 🛡️ Admin Dashboard
+
+The administrative dashboard provides a centralized interface for managing lunch operations.
+
+### 📊 Order Management
+
+Administrators can review available lunch bookings and inspect consolidated order information.
+
+### 🍽️ Menu Management
+
+The application supports menu-related management through its existing interface.
+
+The available operations depend on the implemented menu-management workflow.
+
+### ⏰ Booking Deadline Settings
+
+Administrators can configure the daily booking cut-off by selecting a preset or entering a custom time.
+
+The supported deadline options are:
+
+- 11:30 AM by default.
+- 12:00 PM.
+- 12:30 PM.
+- 1:00 PM.
+- 1:30 PM.
+- 2:00 PM.
+- Custom AM/PM time.
+
+### ✏️ Order-Edit Requests
+
+The application supports a workflow for reviewing order-edit requests.
+
+A typical workflow is:
+
+1. An employee submits an edit request.
+2. The request becomes available for administrative review.
+3. An administrator reviews the requested changes.
+4. The administrator approves or rejects the request using the available controls.
+5. An approved request updates the relevant order according to the application's implementation.
+
+The consolidated order summary should reflect the latest approved order data.
+
+### 🥡 Surplus Food Management
+
+The application includes a surplus-related workflow intended to help manage available surplus food.
+
+The exact process depends on the implemented features.
+
+### 📱 WhatsApp Order Summary
+
+Administrators can use the application's WhatsApp integration to prepare or share lunch order information.
+
+The recipient and prepared message should be checked before operational use.
+
+---
+
+## 📱 WhatsApp Integration
+
+WhatsApp integration supports communication around daily lunch orders.
+
+The application can prepare order information for sharing through the supported WhatsApp workflow.
+
+### Benefits
+
+- Simplifies the preparation of lunch summaries.
+- Reduces repetitive manual copying.
+- Makes consolidated order information easier to share.
+- Supports an existing office communication channel.
+
+### Important Considerations
+
+- Verify the WhatsApp recipient.
+- Check that the summary contains the correct order information.
+- Ensure approved edits are reflected in the summary.
+- Avoid sharing unnecessary employee information.
+- Verify the integration on supported desktop and mobile environments.
+
+> Opening WhatsApp with a prepared message is not the same as automatically sending that message. The actual behavior depends on the implementation.
+
+---
+
+## 🎨 UI and User Experience
+
+LunchBox follows a modern frontend approach focused on clarity, consistency, and usability.
+
+### Design Principles
+
+- Clear visual hierarchy.
+- Consistent spacing and typography.
+- Responsive layouts.
+- Reusable UI components.
+- Understandable forms and controls.
+- Clear success and error feedback.
+- Consistent styling across employee and administrator interfaces.
+
+### ✨ Animations and Interactions
+
+Framer Motion is included in the frontend technology stack.
+
+Where implemented, animations can improve the interface through:
+
+- Smooth component transitions.
+- Animated entry and exit effects.
+- Subtle interaction feedback.
+- More natural visual state changes.
+
+Animations should remain lightweight and should not interfere with accessibility or usability.
+
+### 📱 Responsive Design
+
+The application is designed to support different screen sizes, including:
+
+- Desktop computers.
+- Laptops.
+- Tablets.
+- Mobile phones.
+
+Booking controls, order information, and administrative actions should remain easy to use across supported devices.
+
+---
+
+## 🧰 Technology Stack
+
+LunchBox uses a modern JavaScript frontend with cloud-backed application services.
 
 | Technology | Purpose |
 |---|---|
-| ⚛️ React | Frontend UI |
-| ⚡ Vite | Development server and build tool |
-| 🎨 Tailwind CSS | Styling and responsive design |
-| 🎞️ Framer Motion | Animations and transitions |
-| 🧩 Lucide React | Icons |
-| 🗃️ Supabase | Shared database and synchronization |
-| ☁️ Vercel | Production hosting |
-| 📱 WhatsApp | Food-owner order communication |
-| 🔗 QR Code | Quick mobile access |
-| 🐙 GitHub | Source-code repository |
+| React | Building reusable user-interface components. |
+| Vite | Frontend development server and build tooling. |
+| JavaScript | Application logic and interactions. |
+| Tailwind CSS | Utility-based styling and responsive layouts. |
+| Framer Motion | Animations and transitions where implemented. |
+| Lucide React | Icons and interface elements. |
+| Supabase | Configured backend services and database integration. |
+| PostgreSQL | Relational database used by Supabase. |
+| Vercel | Frontend hosting and deployment. |
+| WhatsApp | Order communication through the supported integration. |
+| Git | Source-code version control. |
+| GitHub | Repository hosting and collaboration. |
+
+### Frontend
+
+The frontend is responsible for:
+
+- Rendering employee and administrative interfaces.
+- Handling user interactions.
+- Displaying menus and bookings.
+- Managing application state.
+- Communicating with Supabase.
+- Displaying success and error feedback.
+
+### Backend Services
+
+Supabase provides the backend services configured for the application, which may include database access, authentication-related services, persistent application data, and access policies.
+
+### Hosting
+
+Vercel hosts the deployed frontend application.
+
+The deployed application depends on the correct environment configuration and Supabase setup.
 
 ---
 
-# 📁 Main Project Structure
+## 🏗️ Application Architecture
 
-The important project structure is:
+The application follows a frontend-to-backend architecture.
 
-    src/
-    ├── components/
-    │   ├── admin/
-    │   ├── Cart.jsx
-    │   ├── ItemCard.jsx
-    │   ├── SurplusPanel.jsx
-    │   ├── ThemeToggle.jsx
-    │   ├── ThaliRing.jsx
-    │   └── Toast.jsx
-    │
-    ├── context/
-    │   └── AppContext.jsx
-    │
-    ├── pages/
-    │   ├── AdminDashboard.jsx
-    │   ├── EmployeePortal.jsx
-    │   └── Login.jsx
-    │
-    ├── App.jsx
-    └── main.jsx
+```mermaid
+flowchart TD
+    A[Employee / Admin / Owner] --> B[React Frontend]
+    B --> C[Application UI and Logic]
+    C --> D[Supabase Client]
+    D --> E[Supabase Services]
+    E --> F[(PostgreSQL Database)]
+    C --> G[WhatsApp Integration]
+    B --> H[Vercel Hosting]
+```
 
-Additional project files include:
+### Architecture Overview
 
-    package.json
-    vite.config.js
-    tailwind.config.js
-    index.html
-    .env
-    .env.example
-    README.md
+**React Frontend**
 
----
+Displays the user interface and handles user interactions.
 
-# 👤 Login System
+**Application Logic**
 
-The application uses an approved employee-name based login system.
+Coordinates booking actions, order management, administrative workflows, and interface state.
 
-Employees do not need a password for the current office workflow.
+**Supabase Client**
 
-Approved employees can enter their name and access the employee portal.
+Connects the frontend to the configured Supabase services.
 
-The Owner/Admin account can access the Admin Dashboard.
+**Supabase and PostgreSQL**
 
-### Unknown employee
+Provide backend services and persistent storage according to the project's configuration.
 
-If someone enters a name that is not currently approved:
+**WhatsApp Integration**
 
-1. Login is rejected.
-2. The employee is informed that access is not approved.
-3. An access request can be sent to Admin.
-4. Admin can review the request.
-5. Admin can decide whether to add the employee temporarily or permanently.
+Supports the configured order-sharing workflow.
+
+**Vercel**
+
+Hosts the deployed frontend application.
+
+> This is a high-level architecture diagram. The exact implementation depends on the project's source code and backend configuration.
 
 ---
 
-# 🍛 Employee Lunch Ordering Flow
+## 🔄 Application Workflow
 
-After login, the employee sees today's available thali.
+### Daily Lunch Booking
 
-The employee can select quantities for:
+```mermaid
+flowchart TD
+    A[Open LunchBox] --> B[Employee Login]
+    B --> C[View Available Lunch Options]
+    C --> D{Is Booking Open?}
+    D -->|Yes| E[Select Lunch]
+    E --> F[Submit Booking]
+    F --> G[Booking Recorded]
+    G --> H[Admin Reviews Orders]
+    H --> I[Prepare Order Summary]
+    I --> J[Share Through WhatsApp]
+    D -->|No| K[Booking Closed]
+```
 
-- 🥣 Veg Bowl 1
-- 🌶️ Veg Bowl 2
-- 🫓 Roti
-- 🍚 Rice
-- 🍮 Extra item such as Kheer/Dessert
-- 🥗 Salad
+### Booking Deadline Configuration
 
-The interface also displays an animated thali/ring summary.
+```mermaid
+flowchart TD
+    A[Admin Opens Settings] --> B[Choose Booking Deadline]
+    B --> C{Deadline Type}
+    C -->|Preset| D[Select Available Time]
+    C -->|Custom| E[Enter Custom AM/PM Time]
+    D --> F[Apply Deadline]
+    E --> F
+    F --> G[Booking Logic Uses Configured Deadline]
+    G --> H[Evaluate Booking Availability]
+```
 
-Typical normal limits include:
-
-- Veg Bowl 1 → 1
-- Veg Bowl 2 → 1
-- Roti → 4
-- Rice → 1
-- Extra → 1
-- Salad → 1
-
-The exact Roti quantity can be controlled through the menu configuration.
-
----
-
-# 🔄 Same Vegetable in Both Bowls
-
-Employees can enable:
-
-**Same vegetable in both bowls**
-
-They can then choose whether to double:
-
-- Dry Sabzi
-- Gravy Sabzi
-
-This is treated as a special lunch requirement because the normal two-bowl combination has been changed.
+These diagrams illustrate the intended workflows and should be kept aligned with the actual application behavior.
 
 ---
 
-# ♻️ Surplus Food System
+## 📁 Project Structure
 
-The surplus system allows unused food portions to be offered to other employees.
+A simplified example of the project structure is shown below.
 
-### Example
+```text
+lunchbox-main/
+│
+├── public/
+│
+├── src/
+│   ├── components/
+│   │   ├── admin/
+│   │   └── ...
+│   │
+│   ├── context/
+│   ├── data/
+│   ├── lib/
+│   ├── utils/
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── ...
+│
+├── .env
+├── .gitignore
+├── index.html
+├── package.json
+├── package-lock.json
+├── vite.config.js
+└── README.md
+```
 
-Suppose the normal allowance is:
+> This is an illustrative structure, not a verified inventory of every file in the repository. Preserve the existing project structure.
 
-    Mix Veg = 1
+### Directory Responsibilities
 
-An employee chooses:
+| Directory | Purpose |
+|---|---|
+| `src/components/` | Reusable interface components. |
+| `src/components/admin/` | Administrative interface components. |
+| `src/context/` | Shared application state and context logic. |
+| `src/data/` | Application data and default configuration. |
+| `src/lib/` | Shared libraries and external-service clients. |
+| `src/utils/` | Helper functions and validation logic. |
+| `public/` | Static assets served by the frontend. |
 
-    Mix Veg = 0
+---
 
-The unused portion becomes:
+## 🚀 Getting Started
 
-    1 surplus Mix Veg available
+Follow these steps to run the project locally.
 
-Another employee can then claim it.
+### Prerequisites
+
+Make sure you have:
+
+- Node.js installed.
+- npm available.
+- Git installed.
+- Access to the project repository.
+- A configured Supabase project.
+
+### 1. Open the Project Directory
+
+On Ubuntu, open a terminal and run:
+
+```bash
+cd /home/mohit/Documents/lunchbox-main
+```
+
+Make sure this is the original LunchBox project directory.
+
+### 2. Install Dependencies
+
+Run:
+
+```bash
+npm install
+```
+
+This installs the dependencies defined in `package.json`.
+
+### 3. Configure Environment Variables
+
+Create or update the `.env` file in the project root.
+
+Use the variable names expected by the existing application.
+
+See the [Environment Variables](#-environment-variables) section.
+
+### 4. Start the Development Server
+
+Run:
+
+```bash
+npm run dev
+```
+
+Vite will display the local development URL in the terminal.
+
+Open the displayed URL in your browser.
 
 For example:
 
-    Normal Mix Veg = 1
-    Employee claims surplus = +1
+```text
+http://localhost:5173
+```
 
-The employee can now receive:
+The actual port may differ depending on the project configuration or port availability.
 
-    Mix Veg = 2
+### 5. Build for Production
 
-The surplus portion is consumed when claimed.
+Run:
 
-If the employee later removes that additional surplus portion, the surplus becomes available again.
+```bash
+npm run build
+```
 
----
+This creates the production build using the configured build process.
 
-# 🌐 Why Supabase Is Needed
+### 6. Preview the Production Build
 
-The application originally used browser LocalStorage for storing data.
+Run:
 
-LocalStorage is useful for simple local testing, but it has an important limitation:
+```bash
+npm run preview
+```
 
-**LocalStorage is local to each browser/device.**
-
-For example:
-
-    Employee Phone A
-        ↓
-    LocalStorage A
-
-    Employee Phone B
-        ↓
-    LocalStorage B
-
-These two devices do not automatically share the same data.
-
-That creates problems for a real office environment.
+Open the local URL printed in the terminal to inspect the production build.
 
 ---
 
-# ❌ Problems Without Supabase
+## 🔐 Environment Variables
 
-Without a shared database:
+The application uses environment variables to configure its Supabase connection and public application URL.
 
-### 1. Surplus cannot reliably be shared between phones
+The following variables have been used by this project:
 
-If Employee A creates surplus on their phone, Employee B on another phone cannot automatically see it.
+```dotenv
+VITE_APP_URL=https://your-app-domain.example
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+```
 
-### 2. Orders are not globally shared
+Replace the example values with the appropriate values for your environment.
 
-An order submitted on one device cannot reliably appear on another device.
+### `VITE_APP_URL`
 
-### 3. Admin cannot reliably see every employee's order
+The public URL of the application.
 
-The Admin Dashboard needs one shared source of truth.
+This can be used by features that need to generate links to the application, such as QR codes.
 
-### 4. Access requests cannot reliably reach Admin
+For local development, use the local application URL when required by the relevant feature.
 
-If an unknown employee sends an access request from their phone, the Admin's phone/computer needs to receive that request.
+For production, use the deployed application URL.
 
-### 5. Approval status is not shared
+### `VITE_SUPABASE_URL`
 
-When Admin approves an order, other devices need to see the updated state.
+The URL of the Supabase project.
 
-### 6. Menu changes are not shared
+You can find it in your Supabase project settings.
 
-If Admin changes the menu, employees need to receive the same updated menu.
+### `VITE_SUPABASE_PUBLISHABLE_KEY`
 
----
+The publishable key used by the frontend Supabase client.
 
-# ✅ What Supabase Solves
+Use the key type supported by the existing application configuration.
 
-Supabase provides a shared backend/database layer.
+### ⚠️ Environment Variable Security
 
-The application can use Supabase to synchronize:
-
-- 👥 Employees
-- 🍛 Menu
-- 🧾 Orders
-- ♻️ Surplus claims
-- 🔔 Access requests
-- 📝 Edit requests
-- 👑 Admin/Owner related application state
-
-The important difference is:
-
-    Employee Phone
-          ↓
-       Supabase
-          ↑
-    Admin Computer
-          ↑
-    Other Employee Phones
-
-Everyone can work with the same shared data.
+- Do not commit your private `.env` file to GitHub.
+- Never place database passwords in frontend environment variables.
+- Never expose a Supabase service-role key in browser-side code.
+- Remember that Vite variables prefixed with `VITE_` are included in the client-side application bundle.
+- Configure appropriate Supabase Row Level Security (RLS) policies.
+- Keep sensitive backend credentials in secure server-side environments.
 
 ---
 
-# 📝 Edit Order Flow
+## 🗄️ Supabase Configuration
 
-After submitting an order, an employee can request an edit.
+Supabase provides the configured backend services for LunchBox.
 
-### Normal employee
+### Configuration Steps
 
-    Employee
-       ↓
-    Edit Order
-       ↓
-    Edit Request
-       ↓
-    Admin Dashboard
-       ↓
-    Approve / Reject
+1. Open the Supabase dashboard.
+2. Select the appropriate project.
+3. Locate the project URL and supported publishable key.
+4. Add the required values to the application's environment configuration.
+5. Confirm that the required database objects and access policies exist.
+6. Run the application locally.
+7. Test employee and administrative workflows.
 
-If Admin approves the request, the employee's order is updated.
+### Database Considerations
 
-### Admin / Owner
+Before changing database structures:
 
-Admin/Owner changes can be applied directly because the Admin/Owner is the approving authority.
+- Review the existing schema.
+- Confirm which tables the application uses.
+- Check the relevant Row Level Security policies.
+- Verify relationships and constraints.
+- Back up important data before making structural changes.
 
----
-
-# 📊 Admin Dashboard
-
-The Admin Dashboard contains the main management areas.
-
-## Today's Summary
-
-Admin can:
-
-- View today's submitted orders
-- See approval status
-- Approve orders
-- Approve all orders
-- Review lunch activity
-- Send approved orders to the food owner
-
-## 👥 Employees & Admins
-
-Admin can manage approved employees and administrators.
-
-## 🔔 Access Requests
-
-Unknown employee login requests can appear here for Admin review.
-
-## 🍽️ Menu Settings
-
-Admin can manage the lunch menu for the available weekdays.
-
-Menu settings can include:
-
-- Dry sabzi
-- Gravy sabzi
-- Roti
-- Rice
-- Extra item
-- Salad
+Database changes should be based on the actual implementation and requirements rather than assumptions.
 
 ---
 
-# 📲 WhatsApp Food Order
+## 🌐 Deployment
 
-After lunch orders are approved, Admin can click:
+LunchBox can be deployed to Vercel.
 
-**Send for Order**
+### 1. Prepare the Project
 
-The application generates a short WhatsApp message for the food owner.
+From the project directory, run:
 
-The food sender number is configured inside:
+```bash
+npm run build
+```
 
-    src/pages/AdminDashboard.jsx
+Resolve build errors before deploying.
 
-The application converts a normal 10-digit Indian number into the WhatsApp country-code format automatically.
+### 2. Push Changes to GitHub
 
-For example:
+Commit and push the required application changes to the appropriate repository and branch.
 
-    9876543210
+See the [Git and GitHub Workflow](#-git-and-github-workflow) section.
 
-becomes:
+### 3. Import the Repository into Vercel
 
-    919876543210
+1. Open Vercel.
+2. Import the GitHub repository.
+3. Select the correct project root.
+4. Confirm the build settings.
+5. Configure the required environment variables.
 
-The WhatsApp message is opened through a WhatsApp deeplink.
+### 4. Configure Production Environment Variables
 
----
+Configure the production values for:
 
-# 🔐 Anonymous WhatsApp Format
+- `VITE_APP_URL`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-Employee names are intentionally **not exposed** in the food-order WhatsApp message.
+Use the correct values for the production environment.
 
-Instead, anonymous placeholders are used:
+### 5. Deploy
 
-    P1
-    P2
-    P3
-    P4
+Start the deployment and wait for the build to finish.
 
-This keeps the message short and avoids exposing employee names.
+Open the deployed application and test the main workflows.
 
----
+### 6. Verify Production Behavior
 
-# 📱 WhatsApp Message Example
+After deployment, test:
 
-A typical generated message looks like:
+- Employee login.
+- Lunch booking.
+- Booking deadline enforcement.
+- Administrative access.
+- Order summaries.
+- Order-edit requests and approvals.
+- WhatsApp integration.
+- Mobile responsiveness.
+- Supabase connectivity.
 
-    🍱 OFFICE LUNCH ORDER Sparsh Panipat
-    Date: 14 Aug 2026
-    Total approved orders: 3
-
-    Regular: 1
-    Special: 2
-
-    P1 : Regular + 1 Kheer extra
-    P2 : Only Rice
-    P3 : Only Rice, Roti × 2, Salad
-
-    Please prepare the above approved lunch orders.
-
-The exact contents depend on the approved orders for that day.
-
----
-
-# 🍮 Regular + Surplus
-
-An important distinction is made between:
-
-### Regular order
-
-The employee has the normal lunch quantity.
-
-### Regular + surplus
-
-The employee has the normal lunch plus one or more surplus portions.
-
-For example:
-
-    Normal lunch + 1 Kheer
-
-This can be represented compactly as:
-
-    P1 : Regular + 1 Kheer extra
-
-This prevents a normal lunch that simply consumes surplus food from being incorrectly described as a completely modified/special lunch.
+> Environment variable changes may require a new deployment before updated values become available to the frontend.
 
 ---
 
-# 🍚 Only Item Orders
+## 🔀 Git and GitHub Workflow
 
-When an employee removes all normal food except one item, the WhatsApp message uses a compact format.
+Git tracks source-code changes, while GitHub hosts the repository.
 
-For example:
+### Check the Current Branch and Changes
 
-    P1 : Only Rice
+Check the working tree:
 
-Instead of displaying every excluded item such as:
+```bash
+git status
+```
 
-    -1 Sabzi
-    -4 Roti
-    -1 Salad
-    -1 Kheer
+Check the current branch:
 
-This keeps the food-owner WhatsApp message short and easy to understand.
+```bash
+git branch --show-current
+```
 
----
+Review recent commits:
 
-# 🫓 Roti Naming
+```bash
+git log -5 --oneline
+```
 
-The application intentionally displays:
+### Stage the README
 
-**Roti**
+From the project directory, run:
 
-instead of the internal category name:
+```bash
+git add README.md
+```
 
-**Bread**
+### Commit the Changes
 
-For example:
+Run:
 
-    Roti × 2
+```bash
+git commit -m "docs: improve LunchBox README and booking deadline"
+```
 
----
+### Push to GitHub
 
-# 📱 Mobile Support
+Run:
 
-The application is designed to work on:
+```bash
+git push
+```
 
-- 💻 Desktop
-- 💻 Laptop
-- 📱 Android phones
-- 📱 Mobile browsers
-- 📱 Office devices connected to the same network during local testing
+If the branch does not have an upstream configured, Git will indicate the command needed to configure it.
 
-The UI is responsive and adapts to smaller screens.
+### Good Git Practices
 
----
-
-# 🔗 QR Code
-
-The login page can provide a QR code for quick access.
-
-Employees can scan the QR code using their phone.
-
-For local development, the application can be accessed through the computer's LAN IP when both devices are connected to the same Wi-Fi network.
-
-For permanent office use, the deployed Vercel URL can be used.
-
----
-
-# 🚀 Running the Project Locally
-
-Install dependencies:
-
-    npm install
-
-Start the development server:
-
-    npm run dev
-
-For phone testing on the same Wi-Fi network:
-
-    npm run dev -- --host
-
-Vite will provide a local network URL that can be opened from another device connected to the same network.
+- Check the active branch before committing.
+- Review `git status` before staging changes.
+- Never commit credentials or private environment files.
+- Avoid force-pushing unless you understand the consequences.
+- Use descriptive commit messages.
+- Keep documentation consistent with the application.
 
 ---
 
-# 🏗️ Production Build
+## 🧪 Testing Checklist
 
-To create a production build:
+Use this checklist when validating the application after changes.
 
-    npm run build
+### 👤 Employee Workflow
 
-To preview the production build locally:
+- [ ] Employee can access the application.
+- [ ] Employee login validation works.
+- [ ] Available lunch options are displayed correctly.
+- [ ] Employee can submit a booking when booking is open.
+- [ ] Booking information is displayed correctly.
+- [ ] Invalid input produces clear feedback.
+- [ ] The interface works on mobile devices.
 
-    npm run preview
+### ⏰ Booking Deadline
 
-Always check that the build completes successfully before deploying a new version.
+- [ ] Default deadline is 11:30 AM.
+- [ ] The 12:00 PM preset can be selected.
+- [ ] The 12:30 PM preset can be selected.
+- [ ] The 1:00 PM preset can be selected.
+- [ ] The 1:30 PM preset can be selected.
+- [ ] The 2:00 PM preset can be selected.
+- [ ] Custom-time selection is available.
+- [ ] Custom AM times are interpreted correctly.
+- [ ] Custom PM times are interpreted correctly.
+- [ ] Booking is allowed before the deadline when other conditions permit.
+- [ ] Booking is rejected after the deadline when the restriction applies.
+- [ ] The deadline persists according to the application's design.
+- [ ] Updating the deadline produces the expected behavior.
+- [ ] Date changes and time-zone behavior are handled correctly.
 
----
+### 🛡️ Admin Dashboard
 
-# 🔐 Environment Variables
+- [ ] Authorized administrators can access the dashboard.
+- [ ] Unauthorized users cannot access restricted actions.
+- [ ] Current bookings are displayed correctly.
+- [ ] Menu-related controls work as expected.
+- [ ] Booking deadlines can be configured.
+- [ ] Order-edit requests appear for review.
+- [ ] Approved edits update the intended order.
+- [ ] The order summary reflects the latest approved order data.
+- [ ] Surplus-related workflows work as expected.
 
-The project uses environment variables for configuration.
+### 📱 WhatsApp Integration
 
-Typical Vite variables include:
+- [ ] The correct WhatsApp destination is used.
+- [ ] The prepared message contains the correct order information.
+- [ ] Special characters and line breaks display correctly.
+- [ ] The summary reflects approved order changes.
+- [ ] The workflow works on supported devices.
 
-    VITE_APP_URL
-    VITE_SUPABASE_URL
-    VITE_SUPABASE_PUBLISHABLE_KEY
+### 🗄️ Backend and Data
 
-The actual configuration values should remain inside the local `.env` file and should not be committed if the project is configured to ignore `.env`.
+- [ ] Supabase connection works.
+- [ ] Required database objects exist.
+- [ ] Data changes persist correctly.
+- [ ] RLS policies protect restricted data.
+- [ ] Unauthorized operations are rejected.
+- [ ] Private credentials are not exposed in the frontend bundle.
 
-A `.env.example` file can be used to show required variable names without exposing real credentials.
+### 🚀 Production Deployment
 
----
-
-# ☁️ Vercel Deployment
-
-The project is deployed using Vercel.
-
-Typical deployment flow:
-
-    VS Code
-       ↓
-    Git
-       ↓
-    GitHub
-       ↓
-    Vercel
-       ↓
-    Live Website
-
-After pushing changes to the connected GitHub repository, Vercel can automatically create a new deployment.
-
-Environment variables must also be configured inside the Vercel project.
-
----
-
-# 🐙 GitHub Workflow
-
-After making changes locally:
-
-    git status
-
-Then:
-
-    git add .
-
-Create a commit:
-
-    git commit -m "Update lunch ordering application"
-
-Push:
-
-    git push origin main
-
-If the repository uses another branch, replace `main` with that branch name.
+- [ ] Production build completes successfully.
+- [ ] Vercel deployment completes successfully.
+- [ ] Production environment variables are configured.
+- [ ] The deployed application loads correctly.
+- [ ] Booking and deadline behavior work in production.
+- [ ] Mobile layouts remain usable.
+- [ ] Browser console errors are investigated.
 
 ---
 
-# 🔄 Typical Update Flow
+## 🔒 Security Considerations
 
-For future changes:
+Security matters because LunchBox handles employee information and office order data.
 
-    1. Edit the project in VS Code
-    2. Test locally
-    3. Run npm run build
-    4. Check git status
-    5. git add .
-    6. git commit -m "Describe the update"
-    7. git push origin main
-    8. Vercel deploys the updated version
+### Environment Variables
 
----
+Never commit private credentials or sensitive configuration to a public repository.
 
-# 🧪 Testing Checklist
+### Supabase Access Policies
 
-## Employee
+Configure Row Level Security and authorization policies so users can access only the data and operations permitted by the application's security model.
 
-- [ ] Employee can log in
-- [ ] Today's menu appears
-- [ ] Quantity buttons work
-- [ ] Normal limits work
-- [ ] Same-sabzi option works
-- [ ] Surplus appears when another employee creates it
-- [ ] Surplus can be claimed
-- [ ] Claimed surplus disappears
-- [ ] Releasing surplus makes it available again
-- [ ] Order can be submitted
-- [ ] Submitted order is visible to Admin
+### Role-Based Access
 
-## Edit Order
+Administrative operations should be restricted to authorized users.
 
-- [ ] Employee can request an edit
-- [ ] Admin sees the edit request
-- [ ] Admin can approve
-- [ ] Admin can reject
-- [ ] Approved edit updates the order
-- [ ] Admin/Owner direct edit works
+Hiding a button in the frontend is not sufficient security by itself.
 
-## Admin
+### Input Validation
 
-- [ ] Admin login works
-- [ ] Today's Summary loads
-- [ ] Employees/Admins section works
-- [ ] Access Requests works
-- [ ] Menu Settings works
-- [ ] Orders can be approved
-- [ ] Approve All works
-- [ ] Book My Lunch works
-- [ ] Back button returns to Admin Dashboard
-- [ ] Send for Order opens WhatsApp
+Validate important input values and enforce the relevant rules in the appropriate application layer.
 
-## WhatsApp
+### Booking Deadline Enforcement
 
-- [ ] Employee names are not exposed
-- [ ] P1/P2/P3 placeholders are used
-- [ ] Regular count is correct
-- [ ] Special count is correct
-- [ ] Regular + surplus is represented correctly
-- [ ] Only-item orders use compact wording
-- [ ] Roti is displayed instead of Bread
-- [ ] Food owner number is correct
+Booking restrictions should be enforced by the application's booking logic, not only by a visual countdown or disabled button.
 
-## Mobile
+Where backend enforcement is used, apply a consistent time source and appropriate time-zone rules.
 
-- [ ] Login works on phone
-- [ ] Menu is readable
-- [ ] Quantity controls work
-- [ ] Surplus works
-- [ ] WhatsApp opens correctly
+### Data Integrity
+
+Approved order edits should update the intended order consistently.
+
+The consolidated order summary should reflect the latest approved order data.
 
 ---
 
-# 🔒 Important Security Note
+## 💡 Future Improvements
 
-The current login workflow is designed for the office's practical internal use.
+Potential improvements for future versions include:
 
-It should not be considered a high-security authentication system because the employee login flow does not use passwords or full identity verification.
+- 📊 More detailed lunch-order analytics.
+- 📅 Historical booking reports.
+- 🔔 Booking deadline reminders.
+- 📈 Administrative reporting dashboards.
+- 🧾 Exportable order summaries.
+- 📱 Further mobile usability improvements.
+- ♿ Accessibility improvements.
+- 🧪 Automated tests for booking and deadline rules.
+- 🔐 Additional security and authorization testing.
+- ⚡ Performance improvements.
+- 🕒 More explicit time-zone handling.
 
-For a future production-grade system, authentication could be strengthened with:
-
-- Supabase Auth
-- OTP
-- Email/password
-- Employee accounts
-- Role-based access control
-- Row Level Security policies
-
----
-
-# 🧠 Why the Architecture Uses Supabase
-
-The application has many actions that need to be shared between different devices.
-
-For example:
-
-    Employee A removes Kheer
-             ↓
-    1 Kheer surplus created
-             ↓
-         Supabase
-             ↓
-    Employee B sees surplus
-             ↓
-    Employee B claims Kheer
-             ↓
-         Supabase
-             ↓
-    Surplus decreases
-
-The same shared-data concept applies to:
-
-    Orders
-    Approvals
-    Employees
-    Menu
-    Access Requests
-    Edit Requests
-
-This is why Supabase is important for the multi-device office version.
+These are potential improvements, not claims that the features are already implemented.
 
 ---
 
-# 🎨 Design
+## 👨‍💻 Project Purpose
 
-The UI follows a modern food-ordering design language using:
+LunchBox was created to improve the daily office lunch-booking process through a centralized web application.
 
-- 💚 Emerald green
-- 🟡 Golden / amber accents
-- 🥣 Thali-inspired visuals
-- 🧊 Glassmorphism cards
-- ✨ Smooth animations
-- 🌙 Dark mode
-- 📱 Responsive layouts
-- 🔖 Custom lunch/thali favicon
+The project brings together frontend development, application state management, database integration, administrative workflows, and deployment practices in a practical business use case.
 
-The visual design is intended to feel professional while still being friendly and easy for employees to use.
+It demonstrates how a modern web application can reduce manual coordination and make recurring office tasks easier to manage.
 
----
+### Core Principles
 
-# 📌 Current Project Purpose
-
-This project is designed as an internal office lunch-management system.
-
-It replaces informal manual lunch collection with a centralized digital workflow.
-
-Instead of employees communicating their lunch requirements individually, the application provides:
-
-    Employee
-       ↓
-    Select lunch
-       ↓
-    Submit order
-       ↓
-    Admin reviews
-       ↓
-    Approve
-       ↓
-    Generate compact WhatsApp order
-       ↓
-    Food Owner prepares lunch
+- Simplicity.
+- Usability.
+- Reliability.
+- Maintainability.
+- Responsive design.
+- Secure data access.
+- Practical automation.
 
 ---
 
-# 🌟 Final Result
+<div align="center">
 
-LunchBox Panipat provides one complete workflow for:
+### 🍱 LunchBox
 
-**Employee → Lunch Selection → Surplus → Order → Admin Approval → WhatsApp → Food Owner**
+**Making everyday office lunch management simpler.**
 
-The combination of React, Supabase, and Vercel provides a responsive user interface, shared office data, and a publicly accessible deployed application.
+Built with ❤️ using React, Vite, Tailwind CSS, and Supabase.
 
----
-
-## 👨‍💻 Project
-
-**LunchBox Panipat**
-
-**Organization:** Sparsh CCTV, Panipat
-
-**Purpose:** Internal Office Lunch Ordering & Management
-
-**Frontend:** React + Vite
-
-**Database:** Supabase
-
-**Hosting:** Vercel
-
-**Source Control:** GitHub
-
----
-
-## ❤️ Built for Simpler Office Lunch Management
-
-🍱 **Select → Share → Approve → Send → Serve**
+</div>
