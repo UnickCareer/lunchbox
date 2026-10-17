@@ -50,15 +50,25 @@ export default function EditRequests() {
     .reverse()
     .slice(0, 10);
 
-  const approve = (request) => {
-    const ok = approveEditRequest(request.id);
+  const approve = async (request) => {
+  try {
+    const ok = await approveEditRequest(request.id);
+
     toast(
       ok
         ? `${request.employeeName}'s edit approved. Their order is now Pending again.`
-        : "Could not approve this edit request.",
+        : "Could not approve this edit request. The order was not saved, or the original order no longer exists.",
       ok ? "success" : "error"
     );
-  };
+  } catch (error) {
+    console.error("Edit approval failed:", error);
+
+    toast(
+      "Could not approve this edit request. Please check the connection and try again.",
+      "error"
+    );
+  }
+};
 
   const reject = (request) => {
     const ok = rejectEditRequest(request.id);

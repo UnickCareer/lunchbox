@@ -180,6 +180,15 @@ export function AppProvider({ children }) {
     loadLS(LS_KEYS.currentPage, "login")
   );
 
+  // Persist the logged-in user and current page across browser refreshes.
+  useEffect(() => {
+    saveLS(LS_KEYS.currentUser, currentUser);
+  }, [currentUser]);
+
+  useEffect(() => {
+    saveLS(LS_KEYS.currentPage, currentPage);
+  }, [currentPage]);
+
   // Per-day employee booking deadlines. The normal daily deadline is 11:30 AM.
   // Admin/Owner can temporarily relax today's deadline for special occasions.
   const [bookingDeadlines, setBookingDeadlines] = useState(() =>
@@ -900,7 +909,7 @@ export function AppProvider({ children }) {
    */
   const submitOrder = useCallback(
     async (employeeName, order, options = {}) => {
-      const dateKey = todayDateKey();
+     const dateKey = options.dateKey || todayDateKey();
       const nextOrder = {
         ...order,
         employeeName,
@@ -1240,70 +1249,71 @@ export function AppProvider({ children }) {
   );
 
   const approveEditRequest = useCallback(
-    (requestId) => {
-      const request = editRequests.find(
-        (item) => item.id === requestId
-      );
+  async (requestId) => {
+    const request = editRequests.find(
+      (item) => item.id === requestId
+    );
 
-      if (
-        !request ||
-        request.status !== "pending"
-      ) {
-        return false;
-      }
+    if (!request || request.status !== "pending") {
+      return false;
+    }
 
-      setOrders((previous) => {
-        const dateOrders =
-          previous[request.dateKey] || {};
+    // Do not approve a request if its original order no longer exists.
+    const currentOrder =
+      orders[request.dateKey]?.[request.employeeName];
 
-        const currentOrder =
-          dateOrders[request.employeeName];
-
-        if (!currentOrder) {
-          return previous;
+    if (!currentOrder) {
+      console.error(
+        "Cannot approve edit: the original order was not found.",
+        {
+          dateKey: request.dateKey,
+          employeeName: request.employeeName,
         }
-
-        return {
-          ...previous,
-          [request.dateKey]: {
-            ...dateOrders,
-            [request.employeeName]: {
-              ...request.editedOrder,
-              employeeName:
-                request.employeeName,
-              submittedAt:
-                new Date().toLocaleTimeString(
-                  "en-GB"
-                ),
-              approved: false,
-              editApprovedAt:
-                new Date().toLocaleString(
-                  "en-GB"
-                ),
-            },
-          },
-        };
-      });
-
-      setEditRequests((previous) =>
-        previous.map((item) =>
-          item.id === requestId
-            ? {
-                ...item,
-                status: "approved",
-                reviewedAt:
-                  new Date().toLocaleString(
-                    "en-GB"
-                  ),
-              }
-            : item
-        )
       );
+      return false;
+    }
 
-      return true;
-    },
-    [editRequests]
-  );
+    const editApprovedAt = new Date().toLocaleString("en-GB");
+
+    // Save the revised order through the existing order-saving mechanism.
+    // This uses the atomic Supabase RPC when configured.
+    const saved = await submitOrder(
+      request.employeeName,
+      {
+        ...request.editedOrder,
+        editApprovedAt,
+      },
+      {
+        approved: false,
+        outOfTime: false,
+        dateKey: request.dateKey,
+      }
+    );
+
+    // Never mark the request approved if saving the revised order failed.
+    if (!saved) {
+      console.error(
+        "Could not save the edited order. The request remains pending."
+      );
+      return false;
+    }
+
+    setEditRequests((previous) =>
+      previous.map((item) =>
+        item.id === requestId && item.status === "pending"
+          ? {
+              ...item,
+              status: "approved",
+              reviewedAt: new Date().toLocaleString("en-GB"),
+            }
+          : item
+      )
+    );
+
+    return true;
+  },
+  [editRequests, orders, submitOrder]
+);
 
   const rejectEditRequest = useCallback(
     (requestId) => {
