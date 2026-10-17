@@ -1,3 +1,23 @@
+<div align="center">
+
+# 🍱 LunchBox — Office Food Ordering System
+
+### A smarter, simpler way to manage daily office lunch.
+
+A modern web application for employees to book their daily lunch, administrators to manage orders, and office teams to coordinate lunch operations efficiently.
+
+**Built for Sparsh CCTV, Panipat**
+
+![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-Frontend-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-Deployment-000000?style=for-the-badge&logo=vercel&logoColor=white)
+
+**Easy Booking · Flexible Deadlines · Real-Time Data · Admin Controls**
+
+</div>
+
 # 🍱 LunchBox Panipat — Office Lunch Ordering System
 
 A modern, responsive **office lunch ordering web application** built for **Sparsh CCTV, Panipat**.
